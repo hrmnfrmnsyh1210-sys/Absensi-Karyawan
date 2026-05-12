@@ -1,0 +1,42 @@
+{
+  "name": "absensi-karyawan",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "concurrently -n nuxt,tunnel -c cyan,magenta \"npm:dev:nuxt\" \"npm:dev:tunnel\"",
+    "dev:nuxt": "nuxt dev --host 0.0.0.0",
+    "dev:tunnel": "cloudflared tunnel --url http://localhost:3000 --protocol http2 --edge-ip-version 4",
+    "dev:local": "nuxt dev --host 0.0.0.0",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "db:setup": "node scripts/setup-db.mjs",
+    "build:capacitor": "nuxt generate",
+    "cap:add-android": "cap add android",
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.3",
+    "@capacitor/core": "^8.3.3",
+    "@nuxtjs/tailwindcss": "^6.12.2",
+    "bcryptjs": "^2.4.3",
+    "exceljs": "^4.4.0",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.4",
+    "nuxt": "^3.14.1592",
+    "pdfkit": "^0.15.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.3.3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/pdfkit": "^0.13.4",
+    "@vite-pwa/nuxt": "^1.1.1",
+    "concurrently": "^9.2.1",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.6.3"
+  }
+}

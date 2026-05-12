@@ -1,0 +1,343 @@
+<script setup lang="ts">
+definePageMeta({ layout: 'admin' })
+
+interface Pegawai {
+  id: number
+  nip: string
+  email: string
+  name: string
+  role: 'admin' | 'pegawai'
+  created_at: string
+}
+
+const api = useApi()
+const list = ref<Pegawai[]>([])
+const search = ref('')
+const loading = ref(false)
+const error = ref<string | null>(null)
+
+const dialogOpen = ref(false)
+const editing = ref<Pegawai | null>(null)
+const form = ref({
+  nip: '',
+  email: '',
+  name: '',
+  password: '',
+  role: 'pegawai' as 'admin' | 'pegawai'
+})
+
+async function load() {
+  loading.value = true
+  try {
+    const q = search.value.trim()
+    list.value = await api<Pegawai[]>('/api/admin/pegawai', {
+      query: q ? { q } : undefined
+    })
+  } catch (e: any) {
+    error.value = e?.data?.statusMessage || 'Gagal memuat data'
+  } finally {
+    loading.value = false
+  }
+}
+await load()
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(load, 300)
+})
+
+function openAdd() {
+  editing.value = null
+  form.value = { nip: '', email: '', name: '', password: '', role: 'pegawai' }
+  dialogOpen.value = true
+  error.value = null
+}
+
+function openEdit(p: Pegawai) {
+  editing.value = p
+  form.value = {
+    nip: p.nip,
+    email: p.email,
+    name: p.name,
+    password: '',
+    role: p.role
+  }
+  dialogOpen.value = true
+  error.value = null
+}
+
+async function save() {
+  error.value = null
+  try {
+    if (editing.value) {
+      await api(`/api/admin/pegawai/${editing.value.id}`, {
+        method: 'PUT',
+        body: form.value
+      })
+    } else {
+      await api('/api/admin/pegawai', {
+        method: 'POST',
+        body: form.value
+      })
+    }
+    dialogOpen.value = false
+    await load()
+  } catch (e: any) {
+    error.value = e?.data?.statusMessage || e?.statusMessage || 'Gagal menyimpan'
+  }
+}
+
+async function remove(p: Pegawai) {
+  if (!confirm(`Hapus pegawai ${p.name} (${p.nip})?`)) return
+  try {
+    await api(`/api/admin/pegawai/${p.id}`, { method: 'DELETE' })
+    await load()
+  } catch (e: any) {
+    alert(e?.data?.statusMessage || 'Gagal menghapus')
+  }
+}
+
+function initials(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase()).join('')
+}
+
+const adminCount = computed(() => list.value.filter(p => p.role === 'admin').length)
+const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai').length)
+</script>
+
+<template>
+  <div class="space-y-3">
+    <!-- Header card: title + stats + add button combined -->
+    <section class="bg-white rounded-2xl border border-hadir-line overflow-hidden">
+      <div class="p-3 flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-hadir-teal-sft text-hadir-teal flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="9" cy="8" r="3.5" /><circle cx="17" cy="9" r="2.5" /><path d="M3 19c1-3 3-5 6-5s5 2 6 5M15 18c.5-2 2-3 4-3s3 1 3 3" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[18px] font-bold text-hadir-ink tracking-tight leading-tight">Pegawai</div>
+          <div class="text-[11px] text-hadir-ink-70 leading-tight">{{ list.length }} karyawan terdaftar</div>
+        </div>
+        <button
+          class="inline-flex items-center gap-1 bg-hadir-teal hover:bg-hadir-teal-dk text-white px-3 h-9 rounded-lg text-[13px] font-semibold shadow-hadir-cta transition flex-shrink-0"
+          @click="openAdd"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Tambah
+        </button>
+      </div>
+      <div class="grid grid-cols-3 gap-1.5 px-2.5 pb-2.5">
+        <div class="bg-hadir-teal-sft rounded-lg p-2 text-center">
+          <div class="text-lg font-bold text-hadir-teal-dk tracking-tight tabular-nums leading-none">{{ pegawaiCount }}</div>
+          <div class="text-[10px] font-semibold text-hadir-teal-dk mt-1">Pegawai</div>
+        </div>
+        <div class="bg-hadir-amber-sft rounded-lg p-2 text-center">
+          <div class="text-lg font-bold text-amber-700 tracking-tight tabular-nums leading-none">{{ adminCount }}</div>
+          <div class="text-[10px] font-semibold text-amber-700 mt-1">Admin</div>
+        </div>
+        <div class="bg-[#EEF2F4] rounded-lg p-2 text-center">
+          <div class="text-lg font-bold text-hadir-ink tracking-tight tabular-nums leading-none">{{ list.length }}</div>
+          <div class="text-[10px] font-semibold text-hadir-ink-70 mt-1">Total</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Search -->
+    <div class="relative">
+      <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-hadir-ink-50">
+        <svg class="w-4 h-4" viewBox="0 0 18 18" fill="none">
+          <circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.8" />
+          <path d="M12.5 12.5L16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+      </span>
+      <input
+        v-model="search"
+        type="search"
+        placeholder="Cari nama, NIP, atau email…"
+        class="w-full md:max-w-md h-10 rounded-xl bg-white border border-hadir-line pl-9 pr-3 text-[13px] placeholder:text-hadir-ink-50 focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition"
+      >
+    </div>
+
+    <!-- Mobile list -->
+    <div class="md:hidden">
+      <div v-if="loading" class="bg-white rounded-2xl p-5 text-center text-[13px] text-hadir-ink-70 border border-hadir-line">
+        Memuat...
+      </div>
+      <div v-else-if="!list.length" class="bg-white rounded-2xl p-6 text-center text-[13px] text-hadir-ink-70 border border-hadir-line">
+        Tidak ada pegawai.
+      </div>
+      <div v-else class="bg-white rounded-2xl overflow-hidden border border-hadir-line">
+        <div
+          v-for="(p, i) in list"
+          :key="p.id"
+          class="flex items-center gap-2.5 px-3 py-2.5"
+          :class="i < list.length - 1 ? 'border-b border-hadir-line' : ''"
+        >
+          <div
+            class="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-white ring-2 ring-white"
+            :class="p.role === 'admin'
+              ? 'bg-gradient-to-br from-hadir-amber to-amber-600'
+              : 'bg-gradient-to-br from-hadir-teal to-hadir-teal-dk'"
+          >
+            {{ initials(p.name) }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5">
+              <div class="font-semibold text-[13px] text-hadir-ink truncate leading-tight">{{ p.name }}</div>
+              <span
+                v-if="p.role === 'admin'"
+                class="inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-bold uppercase bg-hadir-amber-sft text-amber-700 flex-shrink-0"
+              >Admin</span>
+            </div>
+            <div class="text-[10px] text-hadir-ink-70 mt-0.5 flex items-center gap-1 leading-tight">
+              <span class="font-mono">{{ p.nip }}</span>
+              <span class="text-hadir-ink-50">·</span>
+              <span class="truncate">{{ p.email }}</span>
+            </div>
+          </div>
+          <div class="flex gap-1 flex-shrink-0">
+            <button
+              class="w-7 h-7 rounded-md bg-hadir-teal-sft text-hadir-teal-dk hover:bg-hadir-teal/20 flex items-center justify-center"
+              aria-label="Edit"
+              @click="openEdit(p)"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+              </svg>
+            </button>
+            <button
+              class="w-7 h-7 rounded-md bg-hadir-red-sft text-hadir-red hover:bg-hadir-red/20 flex items-center justify-center"
+              aria-label="Hapus"
+              @click="remove(p)"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hidden md:block bg-white rounded-2xl border border-hadir-line overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-hadir-bg text-left text-[11px] uppercase tracking-wider text-hadir-ink-50">
+            <tr>
+              <th class="px-4 py-3 font-bold">Pegawai</th>
+              <th class="px-4 py-3 font-bold">NIP</th>
+              <th class="px-4 py-3 font-bold">Email</th>
+              <th class="px-4 py-3 font-bold">Role</th>
+              <th class="px-4 py-3 text-right font-bold">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-hadir-line">
+            <tr v-if="loading">
+              <td colspan="5" class="px-4 py-10 text-center text-hadir-ink-70">Memuat...</td>
+            </tr>
+            <tr v-else-if="list.length === 0">
+              <td colspan="5" class="px-4 py-10 text-center text-hadir-ink-70">Tidak ada pegawai.</td>
+            </tr>
+            <tr v-for="p in list" :key="p.id" class="hover:bg-hadir-bg">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 ring-2 ring-white"
+                    :class="p.role === 'admin'
+                      ? 'bg-gradient-to-br from-hadir-amber to-amber-600'
+                      : 'bg-gradient-to-br from-hadir-teal to-hadir-teal-dk'"
+                  >
+                    {{ initials(p.name) }}
+                  </div>
+                  <div class="font-semibold text-hadir-ink">{{ p.name }}</div>
+                </div>
+              </td>
+              <td class="px-4 py-3 font-mono text-xs text-hadir-ink-70">{{ p.nip }}</td>
+              <td class="px-4 py-3 text-hadir-ink-70">{{ p.email }}</td>
+              <td class="px-4 py-3">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase"
+                  :class="p.role === 'admin' ? 'bg-hadir-amber-sft text-amber-700' : 'bg-hadir-teal-sft text-hadir-teal-dk'"
+                >
+                  <span class="w-1 h-1 rounded-full" :class="p.role === 'admin' ? 'bg-hadir-amber' : 'bg-hadir-teal'" />
+                  {{ p.role }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button class="text-hadir-teal hover:text-hadir-teal-dk hover:underline mr-3 font-semibold" @click="openEdit(p)">Edit</button>
+                <button class="text-hadir-red hover:underline font-semibold" @click="remove(p)">Hapus</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <Teleport to="body">
+      <div
+        v-if="dialogOpen"
+        class="fixed inset-0 bg-hadir-ink/50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4 z-50"
+        @click.self="dialogOpen = false"
+      >
+        <form
+          class="bg-white w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl p-5 md:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+          style="padding-bottom: calc(env(safe-area-inset-bottom) + 1.25rem);"
+          @submit.prevent="save"
+        >
+          <div class="md:hidden w-12 h-1.5 rounded-full bg-hadir-line mx-auto -mt-1 mb-2" />
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-hadir-ink">
+              {{ editing ? 'Edit Pegawai' : 'Tambah Pegawai' }}
+            </h2>
+            <button type="button" class="w-8 h-8 rounded-full text-hadir-ink-70 hover:bg-hadir-bg flex items-center justify-center" @click="dialogOpen = false">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">NIP</label>
+              <input v-model="form.nip" type="text" required class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Role</label>
+              <select v-model="form.role" class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
+                <option value="pegawai">Pegawai</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Nama Lengkap</label>
+            <input v-model="form.name" type="text" required class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Email</label>
+            <input v-model="form.email" type="email" required class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">
+              Password {{ editing ? '(kosongkan kalau tidak diubah)' : '' }}
+            </label>
+            <input v-model="form.password" type="password" :required="!editing" minlength="6" class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
+          </div>
+          <p v-if="error" class="text-sm text-hadir-red bg-hadir-red-sft border border-hadir-red/20 rounded-xl px-3 py-2.5">{{ error }}</p>
+          <div class="flex gap-2 pt-2">
+            <button type="button" class="flex-1 h-11 rounded-xl bg-white border border-hadir-line text-hadir-ink font-semibold hover:bg-hadir-bg transition" @click="dialogOpen = false">
+              Batal
+            </button>
+            <button type="submit" class="flex-[1.4] h-11 rounded-xl bg-hadir-teal hover:bg-hadir-teal-dk text-white font-bold shadow-hadir-cta transition">
+              Simpan
+            </button>
+          </div>
+        </form>
+      </div>
+    </Teleport>
+  </div>
+</template>
