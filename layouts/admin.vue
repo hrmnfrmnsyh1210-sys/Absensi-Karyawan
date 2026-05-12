@@ -2,12 +2,14 @@
 const { user, logout } = useAuth();
 const route = useRoute();
 
-type IconName = "chart" | "users" | "list" | "inbox" | "cog";
+type IconName = "chart" | "users" | "list" | "inbox" | "cog" | "cal" | "today";
 const navItems: { path: string; label: string; icon: IconName }[] = [
   { path: "/admin", label: "Ringkasan", icon: "chart" },
+  { path: "/admin/harian", label: "Harian", icon: "today" },
   { path: "/admin/pegawai", label: "Pegawai", icon: "users" },
   { path: "/admin/rekap", label: "Rekap", icon: "list" },
   { path: "/admin/izin", label: "Approval", icon: "inbox" },
+  { path: "/admin/libur", label: "Libur", icon: "cal" },
   { path: "/admin/pengaturan", label: "Pengaturan", icon: "cog" },
 ];
 
@@ -128,6 +130,33 @@ const initials = computed(() => {
             >
               <path d="M3 13l2-7h14l2 7v6H3v-6z" />
               <path d="M3 13h6l1 2h4l1-2h6" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'cal'"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="w-5 h-5"
+            >
+              <rect x="3" y="5" width="18" height="16" rx="2.5" />
+              <path d="M3 10h18M8 3v4M16 3v4" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'today'"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="w-5 h-5"
+            >
+              <rect x="3" y="5" width="18" height="16" rx="2.5" />
+              <path d="M3 10h18M8 3v4M16 3v4" />
+              <circle cx="12" cy="15" r="2" fill="currentColor" />
             </svg>
             <svg
               v-else-if="item.icon === 'cog'"
@@ -266,12 +295,12 @@ const initials = computed(() => {
         class="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-hadir-line z-20"
         style="padding-bottom: env(safe-area-inset-bottom)"
       >
-        <div class="flex">
+        <div class="flex overflow-x-auto no-scrollbar">
           <NuxtLink
             v-for="item in navItems"
             :key="item.path"
             :to="item.path"
-            class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] relative transition"
+            class="flex-1 min-w-[68px] flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] relative transition"
             :class="
               route.path === item.path
                 ? 'text-hadir-teal font-semibold'

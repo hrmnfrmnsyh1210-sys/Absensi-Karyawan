@@ -25,6 +25,13 @@ interface Leave {
   date_to: string
   status: 'pending' | 'approved' | 'rejected'
 }
+interface Holiday {
+  id: number
+  name: string
+  date_from: string
+  date_to: string
+  description: string | null
+}
 
 const api = useApi()
 const { user } = useAuth()
@@ -37,14 +44,18 @@ const today = ref<{ check_in: TodayRecord | null; check_out: TodayRecord | null 
 const office = ref<Office | null>(null)
 const history = ref<AttendanceRecord[]>([])
 const leaves = ref<Leave[]>([])
+const holidays = ref<Holiday[]>([])
 const unreadNotif = ref(0)
 
 async function load() {
-  const [t, o, h, l, n] = await Promise.all([
+  const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const monthAhead = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10)
+  const [t, o, h, l, hd, n] = await Promise.all([
     api<typeof today.value>('/api/attendance/today'),
     api<Office>('/api/office').catch(() => null),
     api<AttendanceRecord[]>('/api/attendance/history?limit=30').catch(() => []),
     api<Leave[]>('/api/leaves/mine').catch(() => []),
+    api<Holiday[]>('/api/holidays', { query: { from: monthAgo, to: monthAhead } }).catch(() => []),
     api<{ count: number }>('/api/notifications/unread-count').catch(() => ({ count: 0 })),
     loadSettings()
   ])
@@ -52,6 +63,7 @@ async function load() {
   office.value = o
   history.value = h
   leaves.value = l
+  holidays.value = hd
   unreadNotif.value = n.count
 }
 await load()
@@ -127,6 +139,38 @@ const sakitYTD = computed(() =>
     && new Date(l.date_from).getFullYear() === currentYear.value).length
 )
 
+function ymd(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function isHolidayDate(dateStr: string) {
+  return holidays.value.some(h =>
+    dateStr >= h.date_from.slice(0, 10) && dateStr <= h.date_to.slice(0, 10)
+  )
+}
+function holidayName(dateStr: string) {
+  const h = holidays.value.find(x =>
+    dateStr >= x.date_from.slice(0, 10) && dateStr <= x.date_to.slice(0, 10)
+  )
+  return h?.name || null
+}
+
+const upcomingHolidays = computed(() => {
+  const todayStr = ymd(new Date(now.value))
+  return holidays.value
+    .filter(h => h.date_to.slice(0, 10) >= todayStr)
+    .sort((a, b) => a.date_from.localeCompare(b.date_from))
+    .slice(0, 3)
+})
+
+function fmtDateShort(d: string) {
+  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+}
+function holidayRangeLabel(h: Holiday) {
+  const from = h.date_from.slice(0, 10)
+  const to = h.date_to.slice(0, 10)
+  return from === to ? fmtDateShort(from) : `${fmtDateShort(from)} – ${fmtDateShort(to)}`
+}
+
 const week = computed(() => {
   const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
   const todayD = new Date(now.value)
@@ -147,21 +191,30 @@ const week = computed(() => {
   }
 
   // build a list of work-day cells for this week (Mon..Sat covers 1..6)
-  const cells: Array<{ d: string; n: string; status: 'on' | 'late' | 'today' | 'absent' | 'pending' }> = []
+  const cells: Array<{ d: string; n: string; status: 'on' | 'late' | 'today' | 'absent' | 'pending' | 'holiday'; title?: string }> = []
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
     const wd = d.getDay()
     if (!workDays.includes(wd)) continue
     const key = d.toDateString()
+    const dateStr = ymd(d)
     const isToday = key === todayKey
     const isPast = d.getTime() < new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate()).getTime()
     const rec = checkInsByDate.get(key)
-    let status: 'on' | 'late' | 'today' | 'absent' | 'pending'
-    if (isToday) status = rec ? (isLate(rec.recorded_at, settings.value.work_start_time) ? 'late' : 'on') : 'today'
-    else if (rec) status = isLate(rec.recorded_at, settings.value.work_start_time) ? 'late' : 'on'
-    else status = isPast ? 'absent' : 'pending'
-    cells.push({ d: dayNames[wd], n: String(d.getDate()), status })
+    const isHoliday = isHolidayDate(dateStr)
+    let status: 'on' | 'late' | 'today' | 'absent' | 'pending' | 'holiday'
+    if (rec) {
+      // Show attendance even if it's a holiday (person came anyway)
+      status = isLate(rec.recorded_at, settings.value.work_start_time) ? 'late' : 'on'
+    } else if (isHoliday) {
+      status = 'holiday'
+    } else if (isToday) {
+      status = 'today'
+    } else {
+      status = isPast ? 'absent' : 'pending'
+    }
+    cells.push({ d: dayNames[wd], n: String(d.getDate()), status, title: holidayName(dateStr) || undefined })
   }
   return cells
 })
@@ -254,6 +307,34 @@ const week = computed(() => {
       </div>
     </div>
 
+    <!-- holiday banner -->
+    <div v-if="upcomingHolidays.length" class="px-5 pt-5">
+      <h3 class="text-[12px] font-bold text-hadir-ink-50 uppercase tracking-[1.2px] mb-2.5">Hari Libur</h3>
+      <div class="space-y-2">
+        <div
+          v-for="h in upcomingHolidays"
+          :key="h.id"
+          class="bg-white rounded-[14px] p-3 border border-hadir-line flex items-center gap-3"
+          :class="isHolidayDate(ymd(new Date(now))) && h.date_from.slice(0,10) <= ymd(new Date(now)) && h.date_to.slice(0,10) >= ymd(new Date(now)) ? 'ring-2 ring-hadir-amber/40' : ''"
+        >
+          <div class="w-10 h-10 rounded-xl bg-hadir-amber-sft text-hadir-amber flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <rect x="3" y="5" width="18" height="16" rx="2.5" />
+              <path d="M3 10h18M8 3v4M16 3v4" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm text-hadir-ink truncate">{{ h.name }}</div>
+            <div class="text-[11px] text-hadir-ink-70">{{ holidayRangeLabel(h) }}</div>
+          </div>
+          <span
+            v-if="h.date_from.slice(0,10) <= ymd(new Date(now)) && h.date_to.slice(0,10) >= ymd(new Date(now))"
+            class="text-[10px] font-bold uppercase bg-hadir-amber text-white px-1.5 py-0.5 rounded flex-shrink-0"
+          >Aktif</span>
+        </div>
+      </div>
+    </div>
+
     <!-- quick actions -->
     <div class="px-5 pt-6">
       <h3 class="text-[12px] font-bold text-hadir-ink-50 uppercase tracking-[1.2px] mb-2.5">Aksi cepat</h3>
@@ -288,13 +369,15 @@ const week = computed(() => {
         <NuxtLink to="/riwayat" class="text-[12px] text-hadir-teal font-semibold">Lihat semua</NuxtLink>
       </div>
       <div class="bg-white rounded-[14px] py-2 px-1 border border-hadir-line flex justify-between">
-        <div v-for="d in week" :key="d.n" class="flex-1 text-center py-1.5">
+        <div v-for="d in week" :key="d.n" class="flex-1 text-center py-1.5" :title="d.title">
           <p class="text-[11px] text-hadir-ink-50 mb-1.5">{{ d.d }}</p>
           <div
             class="w-7 h-7 rounded-lg mx-auto flex items-center justify-center text-[13px] font-semibold"
             :class="d.status === 'today'
               ? 'bg-hadir-teal-sft border-2 border-hadir-teal text-hadir-teal'
-              : 'bg-hadir-bg text-hadir-ink'"
+              : d.status === 'holiday'
+                ? 'bg-hadir-amber-sft text-hadir-amber'
+                : 'bg-hadir-bg text-hadir-ink'"
           >
             {{ d.n }}
           </div>
@@ -302,7 +385,7 @@ const week = computed(() => {
             class="w-1.5 h-1.5 rounded-full mt-1.5 mx-auto"
             :class="{
               'bg-hadir-teal': d.status === 'on',
-              'bg-hadir-amber': d.status === 'late',
+              'bg-hadir-amber': d.status === 'late' || d.status === 'holiday',
               'bg-hadir-red': d.status === 'absent',
               'bg-transparent': d.status === 'today' || d.status === 'pending'
             }"

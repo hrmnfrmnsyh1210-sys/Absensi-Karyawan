@@ -8,25 +8,58 @@ interface AttendanceRecord {
   status: 'valid' | 'out_of_range'
   recorded_at: string
 }
+interface Holiday {
+  id: number
+  name: string
+  date_from: string
+  date_to: string
+  description: string | null
+}
 
 const api = useApi()
 const records = ref<AttendanceRecord[]>([])
-records.value = await api<AttendanceRecord[]>('/api/attendance/history')
+const holidays = ref<Holiday[]>([])
+
+const [r, hd] = await Promise.all([
+  api<AttendanceRecord[]>('/api/attendance/history'),
+  api<Holiday[]>('/api/holidays').catch(() => [])
+])
+records.value = r
+holidays.value = hd
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 }
+function ymdFromIso(iso: string) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function holidayForDate(dateStr: string) {
+  return holidays.value.find(h =>
+    dateStr >= h.date_from.slice(0, 10) && dateStr <= h.date_to.slice(0, 10)
+  ) || null
+}
 
-const grouped = computed(() => {
-  const map = new Map<string, AttendanceRecord[]>()
-  for (const r of records.value) {
-    const day = new Date(r.recorded_at).toLocaleDateString('id-ID', {
+interface GroupItem {
+  day: string
+  dateKey: string
+  items: AttendanceRecord[]
+  holiday: Holiday | null
+}
+
+const grouped = computed<GroupItem[]>(() => {
+  const map = new Map<string, GroupItem>()
+  for (const rec of records.value) {
+    const dateKey = ymdFromIso(rec.recorded_at)
+    const day = new Date(rec.recorded_at).toLocaleDateString('id-ID', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     })
-    if (!map.has(day)) map.set(day, [])
-    map.get(day)!.push(r)
+    if (!map.has(dateKey)) {
+      map.set(dateKey, { day, dateKey, items: [], holiday: holidayForDate(dateKey) })
+    }
+    map.get(dateKey)!.items.push(rec)
   }
-  return Array.from(map.entries())
+  return Array.from(map.values())
 })
 
 const stats = computed(() => {
@@ -35,6 +68,22 @@ const stats = computed(() => {
   const outOfRange = records.value.filter(r => r.status !== 'valid').length
   return { total: records.value.length, valid, checkIns, outOfRange }
 })
+
+const upcomingHolidays = computed(() => {
+  const today = new Date().toISOString().slice(0, 10)
+  return holidays.value
+    .filter(h => h.date_to.slice(0, 10) >= today)
+    .sort((a, b) => a.date_from.localeCompare(b.date_from))
+    .slice(0, 5)
+})
+function fmtDateShort(d: string) {
+  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+}
+function holidayRangeLabel(h: Holiday) {
+  const from = h.date_from.slice(0, 10)
+  const to = h.date_to.slice(0, 10)
+  return from === to ? fmtDateShort(from) : `${fmtDateShort(from)} – ${fmtDateShort(to)}`
+}
 </script>
 
 <template>
@@ -78,16 +127,47 @@ const stats = computed(() => {
       <p class="text-sm text-hadir-ink-50">Belum ada riwayat absensi.</p>
     </div>
 
+    <!-- upcoming holidays -->
+    <div v-if="upcomingHolidays.length" class="px-5 pt-5">
+      <h2 class="text-[11px] font-bold text-hadir-ink-50 uppercase tracking-[1.2px] mb-2">Libur Mendatang</h2>
+      <div class="space-y-2">
+        <div
+          v-for="h in upcomingHolidays"
+          :key="h.id"
+          class="bg-white rounded-[14px] p-3 border border-hadir-line flex items-center gap-3"
+        >
+          <div class="w-10 h-10 rounded-xl bg-hadir-amber-sft text-hadir-amber flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <rect x="3" y="5" width="18" height="16" rx="2.5" />
+              <path d="M3 10h18M8 3v4M16 3v4" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm text-hadir-ink truncate">{{ h.name }}</div>
+            <div class="text-[11px] text-hadir-ink-70">{{ holidayRangeLabel(h) }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- list grouped by day -->
     <div class="px-5 pt-5 space-y-5">
-      <div v-for="[day, items] in grouped" :key="day">
+      <div v-for="g in grouped" :key="g.dateKey">
         <div class="flex items-center gap-2 px-1 mb-2">
-          <h2 class="text-[11px] font-bold text-hadir-ink-50 uppercase tracking-[1.2px]">{{ day }}</h2>
+          <h2 class="text-[11px] font-bold text-hadir-ink-50 uppercase tracking-[1.2px]">{{ g.day }}</h2>
+          <span
+            v-if="g.holiday"
+            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-hadir-amber-sft text-hadir-amber"
+            :title="g.holiday.description || ''"
+          >
+            <span class="w-1 h-1 rounded-full bg-hadir-amber" />
+            Libur · {{ g.holiday.name }}
+          </span>
           <div class="flex-1 h-px bg-hadir-line" />
         </div>
         <div class="space-y-2">
           <div
-            v-for="r in items"
+            v-for="r in g.items"
             :key="r.id"
             class="bg-white rounded-2xl p-3.5 border border-hadir-line flex items-center gap-3"
           >
