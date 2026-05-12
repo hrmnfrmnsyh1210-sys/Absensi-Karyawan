@@ -48,9 +48,9 @@ async function onSubmit() {
         </div>
       </div>
 
-      <div v-if="!showForm" class="flex-1 flex flex-col justify-end pb-12">
+      <div v-if="!showForm" class="relative z-10 flex-1 flex flex-col justify-end pb-12">
         <div>
-          <p class="text-[13px] font-semibold text-hadir-amber uppercase tracking-[1.4px] mb-3.5">
+          <p class="text-[13px] font-semibold text-white uppercase tracking-[1.4px] mb-3.5">
             Absensi Karyawan
           </p>
           <h1 class="text-[38px] font-bold leading-[1.1] tracking-[-0.8px]">
