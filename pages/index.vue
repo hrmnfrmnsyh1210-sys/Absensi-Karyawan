@@ -37,21 +37,35 @@ const today = ref<{ check_in: TodayRecord | null; check_out: TodayRecord | null 
 const office = ref<Office | null>(null)
 const history = ref<AttendanceRecord[]>([])
 const leaves = ref<Leave[]>([])
+const unreadNotif = ref(0)
 
 async function load() {
-  const [t, o, h, l] = await Promise.all([
+  const [t, o, h, l, n] = await Promise.all([
     api<typeof today.value>('/api/attendance/today'),
     api<Office>('/api/office').catch(() => null),
     api<AttendanceRecord[]>('/api/attendance/history?limit=30').catch(() => []),
     api<Leave[]>('/api/leaves/mine').catch(() => []),
+    api<{ count: number }>('/api/notifications/unread-count').catch(() => ({ count: 0 })),
     loadSettings()
   ])
   today.value = t
   office.value = o
   history.value = h
   leaves.value = l
+  unreadNotif.value = n.count
 }
 await load()
+
+onMounted(() => {
+  if (!import.meta.client) return
+  const onFocus = () => {
+    api<{ count: number }>('/api/notifications/unread-count')
+      .then(r => { unreadNotif.value = r.count })
+      .catch(() => {})
+  }
+  window.addEventListener('focus', onFocus)
+  onUnmounted(() => window.removeEventListener('focus', onFocus))
+})
 
 function useNow(opts: { interval: number }) {
   const r = ref(new Date())
@@ -166,12 +180,20 @@ const week = computed(() => {
           <p class="text-[13px] text-white/70">{{ greeting }},</p>
           <p class="text-[17px] font-semibold text-white truncate">{{ user?.name || '...' }}</p>
         </div>
-        <button class="w-[38px] h-[38px] rounded-full bg-white/[0.16] flex items-center justify-center" aria-label="Notifikasi">
+        <NuxtLink
+          to="/notifikasi"
+          class="relative w-[38px] h-[38px] rounded-full bg-white/[0.16] flex items-center justify-center active:scale-95"
+          aria-label="Notifikasi"
+        >
           <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
             <path d="M6 8a6 6 0 1112 0v4l2 4H4l2-4V8z" />
             <path d="M10 19a2 2 0 004 0" />
           </svg>
-        </button>
+          <span
+            v-if="unreadNotif > 0"
+            class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-hadir-amber text-hadir-ink text-[10px] font-bold flex items-center justify-center border-2 border-hadir-teal"
+          >{{ unreadNotif > 9 ? '9+' : unreadNotif }}</span>
+        </NuxtLink>
       </div>
     </div>
 

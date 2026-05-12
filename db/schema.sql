@@ -58,3 +58,19 @@ CREATE TABLE IF NOT EXISTS leaves (
   CONSTRAINT fk_leaves_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_leaves_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  type ENUM('leave_approved', 'leave_rejected', 'info') NOT NULL DEFAULT 'info',
+  title VARCHAR(255) NOT NULL,
+  body TEXT NULL,
+  ref_type VARCHAR(32) NULL,
+  ref_id INT NULL,
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  read_at TIMESTAMP NULL,
+  INDEX idx_user_created (user_id, created_at),
+  INDEX idx_user_unread (user_id, is_read),
+  CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

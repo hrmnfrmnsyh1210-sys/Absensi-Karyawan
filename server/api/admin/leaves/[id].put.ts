@@ -1,5 +1,15 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2'
 
+const TYPE_LABEL: Record<string, string> = {
+  cuti: 'Cuti Tahunan',
+  sakit: 'Izin Sakit',
+  izin: 'Izin Pribadi'
+}
+
+function fmtDate(d: string | Date) {
+  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 export default defineEventHandler(async (event) => {
   const auth = requireAdmin(event)
   const id = Number(getRouterParam(event, 'id'))
@@ -16,16 +26,17 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
   const [existing] = await db.query<RowDataPacket[]>(
-    'SELECT id, status FROM leaves WHERE id = ? LIMIT 1',
+    'SELECT id, user_id, type, date_from, date_to, status FROM leaves WHERE id = ? LIMIT 1',
     [id]
   )
-  if (!existing[0]) {
+  const leave = existing[0]
+  if (!leave) {
     throw createError({ statusCode: 404, statusMessage: 'Pengajuan tidak ditemukan' })
   }
-  if (existing[0].status !== 'pending') {
+  if (leave.status !== 'pending') {
     throw createError({
       statusCode: 409,
-      statusMessage: `Pengajuan sudah di-${existing[0].status}, tidak bisa diubah`
+      statusMessage: `Pengajuan sudah di-${leave.status}, tidak bisa diubah`
     })
   }
 
@@ -34,5 +45,24 @@ export default defineEventHandler(async (event) => {
      WHERE id = ?`,
     [status, auth.sub, note, id]
   )
+
+  const typeLabel = TYPE_LABEL[leave.type] || 'Pengajuan'
+  const rangeLabel = leave.date_from === leave.date_to
+    ? fmtDate(leave.date_from)
+    : `${fmtDate(leave.date_from)} – ${fmtDate(leave.date_to)}`
+  const isApproved = status === 'approved'
+  const title = isApproved
+    ? `${typeLabel} disetujui`
+    : `${typeLabel} ditolak`
+  const notifBody = isApproved
+    ? `Pengajuan ${typeLabel.toLowerCase()} kamu untuk ${rangeLabel} telah disetujui.${note ? ` Catatan admin: ${note}` : ''}`
+    : `Pengajuan ${typeLabel.toLowerCase()} kamu untuk ${rangeLabel} ditolak.${note ? ` Alasan: ${note}` : ''}`
+
+  await db.query<ResultSetHeader>(
+    `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
+     VALUES (?, ?, ?, ?, 'leave', ?)`,
+    [leave.user_id, isApproved ? 'leave_approved' : 'leave_rejected', title, notifBody, id]
+  )
+
   return { id, status, review_note: note }
 })
