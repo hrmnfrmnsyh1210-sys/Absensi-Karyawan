@@ -17,18 +17,15 @@ const baseConfig = {
   })
 }
 
-const conn = await mysql.createConnection(useSsl ? { ...baseConfig, database: dbName } : baseConfig)
+const conn = await mysql.createConnection(useSsl ? { ...baseConfig, database: 'test' } : baseConfig)
 
-if (!useSsl) {
+if (useSsl) {
+  await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``)
+  await conn.query(`USE \`${dbName}\``)
+  console.log(`[ok] Database "${dbName}" siap dipakai`)
+} else {
   await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`)
   await conn.query(`USE \`${dbName}\``)
-} else {
-  try {
-    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``)
-    await conn.query(`USE \`${dbName}\``)
-  } catch (e) {
-    console.log(`[info] Database "${dbName}" sudah dipakai dari connection string`)
-  }
 }
 
 const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf-8')
