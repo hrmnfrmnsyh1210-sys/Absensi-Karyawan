@@ -7,6 +7,7 @@ interface Holiday {
   date_from: string
   date_to: string
   description: string | null
+  source: 'manual' | 'national'
   created_at: string
   updated_at: string
   created_by_name: string | null
@@ -41,6 +42,33 @@ async function load() {
   }
 }
 await load()
+
+// --- Sinkronisasi kalender nasional Indonesia ---
+const currentYear = new Date().getFullYear()
+const yearOptions = [currentYear - 1, currentYear, currentYear + 1]
+const syncYear = ref(currentYear)
+const syncing = ref(false)
+
+const nationalCount = computed(() => list.value.filter((h) => h.source === 'national').length)
+
+async function syncNational() {
+  syncing.value = true
+  error.value = null
+  message.value = null
+  try {
+    const res = await api<{ count: number; year: number; message: string }>(
+      '/api/admin/holidays/sync',
+      { method: 'POST', body: { year: syncYear.value } }
+    )
+    message.value = res.message
+    await load()
+    setTimeout(() => { message.value = null }, 5000)
+  } catch (e: any) {
+    error.value = e?.data?.statusMessage || 'Gagal sinkronisasi kalender nasional'
+  } finally {
+    syncing.value = false
+  }
+}
 
 function openCreate() {
   editingId.value = null
@@ -131,7 +159,7 @@ const formDuration = computed(() => {
     <div class="flex items-end justify-between gap-3">
       <div>
         <h1 class="text-[26px] font-bold text-hadir-ink tracking-tight">Hari Libur</h1>
-        <p class="text-sm text-hadir-ink-70 mt-0.5">{{ list.length }} libur terdaftar · {{ upcoming.length }} mendatang</p>
+        <p class="text-sm text-hadir-ink-70 mt-0.5">{{ list.length }} libur terdaftar · {{ nationalCount }} dari kalender nasional</p>
       </div>
       <button
         class="inline-flex items-center gap-1.5 bg-hadir-teal hover:bg-hadir-teal-dk text-white px-3 h-10 md:h-11 md:px-4 rounded-xl text-sm font-semibold shadow-hadir-cta transition"
@@ -146,6 +174,54 @@ const formDuration = computed(() => {
 
     <p v-if="message" class="bg-hadir-teal-sft border border-hadir-teal/20 text-hadir-teal-dk rounded-xl px-3 py-2.5 text-sm">{{ message }}</p>
     <p v-if="error && !dialogOpen" class="bg-hadir-red-sft border border-hadir-red/20 text-hadir-red rounded-xl px-3 py-2.5 text-sm">{{ error }}</p>
+
+    <!-- Sync kalender nasional -->
+    <section class="bg-white rounded-2xl border border-hadir-line p-4">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-xl bg-hadir-teal-sft text-hadir-teal flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+            <path d="M21 3v6h-6" />
+          </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="font-semibold text-hadir-ink">Kalender Nasional Indonesia</div>
+          <p class="text-[12px] text-hadir-ink-70 mt-0.5">
+            Ambil tanggal merah &amp; cuti bersama otomatis dari kalender resmi. Hari libur nasional memblokir absensi pegawai.
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 mt-3">
+        <select
+          v-model.number="syncYear"
+          class="h-10 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition"
+        >
+          <option v-for="y in yearOptions" :key="y" :value="y">Tahun {{ y }}</option>
+        </select>
+        <button
+          type="button"
+          :disabled="syncing"
+          class="inline-flex items-center gap-1.5 bg-hadir-teal hover:bg-hadir-teal-dk text-white px-4 h-10 rounded-xl text-sm font-semibold shadow-hadir-cta disabled:opacity-60 transition"
+          @click="syncNational"
+        >
+          <svg
+            class="w-4 h-4"
+            :class="syncing ? 'animate-spin' : ''"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          >
+            <path v-if="!syncing" d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+            <template v-else>
+              <circle cx="12" cy="12" r="10" stroke-opacity="0.25" />
+              <path d="M22 12a10 10 0 0 1-10 10" />
+            </template>
+          </svg>
+          {{ syncing ? 'Menyinkronkan…' : 'Sinkronkan' }}
+        </button>
+      </div>
+      <p class="text-[11px] text-hadir-ink-50 mt-2">
+        Sinkronisasi akan menimpa seluruh libur nasional tahun terpilih. Libur yang Anda tambah manual tidak terpengaruh.
+      </p>
+    </section>
 
     <!-- Upcoming -->
     <section>
@@ -169,7 +245,13 @@ const formDuration = computed(() => {
                 </svg>
               </div>
               <div class="min-w-0">
-                <div class="font-semibold text-hadir-ink truncate">{{ h.name }}</div>
+                <div class="flex items-center gap-1.5">
+                  <div class="font-semibold text-hadir-ink truncate">{{ h.name }}</div>
+                  <span
+                    v-if="h.source === 'national'"
+                    class="text-[9px] font-bold uppercase tracking-wide bg-hadir-teal-sft text-hadir-teal-dk px-1.5 py-0.5 rounded flex-shrink-0"
+                  >Nasional</span>
+                </div>
                 <div class="text-[12px] text-hadir-ink-70">{{ rangeLabel(h) }}</div>
               </div>
             </div>
@@ -180,11 +262,13 @@ const formDuration = computed(() => {
           </div>
           <div class="flex items-center gap-2 text-[11px]">
             <span class="bg-hadir-bg text-hadir-ink-70 px-2 py-0.5 rounded font-semibold">{{ durationDays(h) }} hari</span>
-            <span v-if="h.created_by_name" class="text-hadir-ink-50">oleh {{ h.created_by_name }}</span>
+            <span v-if="h.source === 'national'" class="text-hadir-ink-50">dari kalender nasional</span>
+            <span v-else-if="h.created_by_name" class="text-hadir-ink-50">oleh {{ h.created_by_name }}</span>
           </div>
           <p v-if="h.description" class="text-[12px] text-hadir-ink-70 line-clamp-2">{{ h.description }}</p>
           <div class="flex gap-2 mt-1">
             <button
+              v-if="h.source !== 'national'"
               class="flex-1 h-8 rounded-lg bg-hadir-bg border border-hadir-line text-hadir-ink-70 hover:bg-white text-xs font-semibold"
               @click="openEdit(h)"
             >Ubah</button>
@@ -214,10 +298,17 @@ const formDuration = computed(() => {
             </svg>
           </div>
           <div class="flex-1 min-w-0">
-            <div class="text-sm font-semibold text-hadir-ink truncate">{{ h.name }}</div>
+            <div class="flex items-center gap-1.5">
+              <div class="text-sm font-semibold text-hadir-ink truncate">{{ h.name }}</div>
+              <span
+                v-if="h.source === 'national'"
+                class="text-[9px] font-bold uppercase tracking-wide bg-hadir-bg text-hadir-ink-50 px-1.5 py-0.5 rounded flex-shrink-0"
+              >Nasional</span>
+            </div>
             <div class="text-[11px] text-hadir-ink-50">{{ rangeLabel(h) }} · {{ durationDays(h) }} hari</div>
           </div>
           <button
+            v-if="h.source !== 'national'"
             class="text-xs font-semibold text-hadir-ink-70 hover:text-hadir-ink px-2 py-1"
             @click="openEdit(h)"
           >Ubah</button>

@@ -32,6 +32,85 @@ async function load() {
 }
 await load()
 
+// --- Jam & hari kerja ---
+interface AppSettings {
+  work_start_time: string
+  work_end_time: string
+  work_days: number[]
+  annual_leave_quota: number
+}
+
+const DAY_OPTIONS = [
+  { v: 1, label: 'Sen' },
+  { v: 2, label: 'Sel' },
+  { v: 3, label: 'Rab' },
+  { v: 4, label: 'Kam' },
+  { v: 5, label: 'Jum' },
+  { v: 6, label: 'Sab' },
+  { v: 0, label: 'Min' }
+]
+
+const settingsForm = ref<AppSettings>({
+  work_start_time: '08:00',
+  work_end_time: '17:00',
+  work_days: [1, 2, 3, 4, 5],
+  annual_leave_quota: 12
+})
+const settingsSaving = ref(false)
+const settingsError = ref<string | null>(null)
+const settingsMessage = ref<string | null>(null)
+
+async function loadSettings() {
+  try {
+    settingsForm.value = await api<AppSettings>('/api/settings')
+  } catch {
+    // keep defaults
+  }
+}
+await loadSettings()
+
+function toggleDay(v: number) {
+  const days = settingsForm.value.work_days
+  const i = days.indexOf(v)
+  if (i === -1) days.push(v)
+  else days.splice(i, 1)
+}
+
+function applyPreset(days: number[]) {
+  settingsForm.value.work_days = [...days]
+}
+
+async function saveSettings() {
+  settingsError.value = null
+  settingsMessage.value = null
+  if (!settingsForm.value.work_days.length) {
+    settingsError.value = 'Pilih minimal satu hari kerja'
+    return
+  }
+  if (settingsForm.value.work_start_time >= settingsForm.value.work_end_time) {
+    settingsError.value = 'Jam masuk harus sebelum jam pulang'
+    return
+  }
+  settingsSaving.value = true
+  try {
+    settingsForm.value = await api<AppSettings>('/api/admin/settings', {
+      method: 'PUT',
+      body: {
+        work_start_time: settingsForm.value.work_start_time,
+        work_end_time: settingsForm.value.work_end_time,
+        work_days: settingsForm.value.work_days,
+        annual_leave_quota: Number(settingsForm.value.annual_leave_quota)
+      }
+    })
+    settingsMessage.value = 'Jam & hari kerja tersimpan.'
+    setTimeout(() => { settingsMessage.value = null }, 4000)
+  } catch (e: any) {
+    settingsError.value = e?.data?.statusMessage || e?.statusMessage || 'Gagal menyimpan'
+  } finally {
+    settingsSaving.value = false
+  }
+}
+
 async function save() {
   error.value = null
   message.value = null
@@ -102,8 +181,8 @@ const visualRadius = computed(() => {
 <template>
   <div class="space-y-4 max-w-2xl">
     <div>
-      <h1 class="text-[26px] font-bold text-hadir-ink tracking-tight">Pengaturan Kantor</h1>
-      <p class="text-sm text-hadir-ink-70 mt-0.5">Atur titik kantor & radius geofence untuk absensi.</p>
+      <h1 class="text-[26px] font-bold text-hadir-ink tracking-tight">Pengaturan</h1>
+      <p class="text-sm text-hadir-ink-70 mt-0.5">Atur titik kantor, radius geofence, serta jam &amp; hari kerja absensi.</p>
     </div>
 
     <div
@@ -297,6 +376,107 @@ const visualRadius = computed(() => {
             <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
           </svg>
           {{ saving ? 'Menyimpan...' : 'Simpan Pengaturan' }}
+        </button>
+      </div>
+    </form>
+
+    <!-- Jam & hari kerja -->
+    <div>
+      <h2 class="text-[20px] font-bold text-hadir-ink tracking-tight mt-2">Jam &amp; Hari Kerja</h2>
+      <p class="text-sm text-hadir-ink-70 mt-0.5">
+        Pegawai hanya bisa absen pada hari kerja. Di luar hari kerja &amp; tanggal merah, absensi otomatis dinonaktifkan.
+      </p>
+    </div>
+
+    <form class="bg-white rounded-2xl border border-hadir-line p-4 space-y-4" @submit.prevent="saveSettings">
+      <div>
+        <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-2">Hari Kerja</label>
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            v-for="d in DAY_OPTIONS"
+            :key="d.v"
+            type="button"
+            class="w-12 h-10 rounded-xl text-sm font-semibold transition"
+            :class="settingsForm.work_days.includes(d.v)
+              ? 'bg-hadir-teal text-white shadow-hadir-cta'
+              : 'bg-hadir-bg border border-hadir-line text-hadir-ink-70 hover:border-hadir-teal'"
+            @click="toggleDay(d.v)"
+          >{{ d.label }}</button>
+        </div>
+        <div class="flex flex-wrap gap-1.5 mt-2.5">
+          <button
+            type="button"
+            class="px-3 py-1 rounded-full text-xs font-semibold bg-white border border-hadir-line text-hadir-ink-70 hover:border-hadir-teal transition"
+            @click="applyPreset([1, 2, 3, 4, 5])"
+          >Senin–Jumat</button>
+          <button
+            type="button"
+            class="px-3 py-1 rounded-full text-xs font-semibold bg-white border border-hadir-line text-hadir-ink-70 hover:border-hadir-teal transition"
+            @click="applyPreset([1, 2, 3, 4, 5, 6])"
+          >Senin–Sabtu</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Jam Masuk</label>
+          <input
+            v-model="settingsForm.work_start_time"
+            type="time"
+            required
+            class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition tabular-nums"
+          >
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Jam Pulang</label>
+          <input
+            v-model="settingsForm.work_end_time"
+            type="time"
+            required
+            class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition tabular-nums"
+          >
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Kuota Cuti Tahunan</label>
+        <div class="relative">
+          <input
+            v-model.number="settingsForm.annual_leave_quota"
+            type="number"
+            min="0"
+            max="365"
+            required
+            class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line pl-3 pr-14 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition tabular-nums"
+          >
+          <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-hadir-ink-50 font-medium pointer-events-none">hari</span>
+        </div>
+      </div>
+
+      <p v-if="settingsError" class="flex items-start gap-2 text-sm text-hadir-red bg-hadir-red-sft border border-hadir-red/20 rounded-xl px-3 py-2.5">
+        <svg class="w-5 h-5 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span>{{ settingsError }}</span>
+      </p>
+      <p v-if="settingsMessage" class="flex items-start gap-2 text-sm text-hadir-teal-dk bg-hadir-teal-sft border border-hadir-teal/20 rounded-xl px-3 py-2.5">
+        <svg class="w-5 h-5 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+        <span>{{ settingsMessage }}</span>
+      </p>
+
+      <div class="flex justify-end pt-2">
+        <button
+          type="submit"
+          :disabled="settingsSaving"
+          class="inline-flex items-center justify-center gap-2 bg-hadir-teal hover:bg-hadir-teal-dk text-white font-bold px-6 h-12 rounded-xl shadow-hadir-cta disabled:opacity-60 transition"
+        >
+          <svg v-if="settingsSaving" class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.25" />
+            <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          {{ settingsSaving ? 'Menyimpan...' : 'Simpan Jam & Hari Kerja' }}
         </button>
       </div>
     </form>

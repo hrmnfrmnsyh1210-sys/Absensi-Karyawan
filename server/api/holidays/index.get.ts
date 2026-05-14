@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
   const [rows] = await db.query<RowDataPacket[]>(
-    `SELECT id, name, date_from, date_to, description
+    `SELECT id, name, date_from, date_to, description, source
      FROM holidays
      ${where}
      ORDER BY date_from ASC

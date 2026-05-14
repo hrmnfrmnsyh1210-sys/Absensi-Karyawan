@@ -65,10 +65,12 @@ CREATE TABLE IF NOT EXISTS holidays (
   date_from DATE NOT NULL,
   date_to DATE NOT NULL,
   description TEXT NULL,
+  source ENUM('manual', 'national') NOT NULL DEFAULT 'manual',
   created_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_date_range (date_from, date_to),
+  INDEX idx_source (source),
   CONSTRAINT fk_holidays_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

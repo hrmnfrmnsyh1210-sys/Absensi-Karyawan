@@ -21,6 +21,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Koordinat GPS tidak valid' })
   }
 
+  // Reject absen on non-work days and holidays (tanggal merah / cuti bersama).
+  await assertWorkingDay()
+
   const db = useDb()
   const [offices] = await db.query<OfficeRow[]>(
     'SELECT id, latitude, longitude, radius_m FROM offices ORDER BY id LIMIT 1'
