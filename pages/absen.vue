@@ -32,6 +32,9 @@ const successResult = ref<{ type: 'check_in' | 'check_out'; recorded_at: string;
 const inRange = computed(
   () => office.value !== null && distance.value !== null && distance.value <= office.value.radius_m
 )
+// Admin bisa mematikan titik lokasi untuk pegawai WFH — absen tanpa cek radius GPS.
+const isWfh = computed(() => !!user.value?.wfh)
+const canSubmit = computed(() => isWfh.value || (!!position.value && inRange.value))
 
 async function loadOffice() {
   office.value = await api<Office>('/api/office')
@@ -93,7 +96,7 @@ function locate() {
 }
 
 async function submit() {
-  if (!position.value) { error.value = 'Ambil lokasi GPS dulu'; return }
+  if (!isWfh.value && !position.value) { error.value = 'Ambil lokasi GPS dulu'; return }
   error.value = null
   status.value = 'submitting'
   try {
@@ -101,8 +104,9 @@ async function submit() {
       method: 'POST',
       body: {
         type: action.value,
-        latitude: position.value.lat,
-        longitude: position.value.lng
+        ...(position.value
+          ? { latitude: position.value.lat, longitude: position.value.lng }
+          : {})
       }
     })
     successResult.value = { type: action.value, recorded_at: res.recorded_at, distance_m: res.distance_m }
@@ -127,7 +131,7 @@ function fmtTime(iso: string) {
 
 const firstName = computed(() => user.value?.name?.split(/\s+/)[0] || 'Anda')
 
-onMounted(() => locate())
+onMounted(() => { if (!isWfh.value) locate() })
 </script>
 
 <template>
@@ -171,13 +175,15 @@ onMounted(() => locate())
     <div class="mx-5 mt-7 bg-white rounded-[18px] p-[18px] border border-hadir-line shadow-hadir-soft">
       <div class="flex justify-between py-2.5 border-b border-dashed border-hadir-line">
         <span class="text-[13px] text-hadir-ink-70">Tipe</span>
-        <span class="text-sm font-semibold text-hadir-ink">{{ successResult.type === 'check_in' ? 'Clock In · WFO' : 'Clock Out · WFO' }}</span>
+        <span class="text-sm font-semibold text-hadir-ink">
+          {{ successResult.type === 'check_in' ? 'Clock In' : 'Clock Out' }} · {{ isWfh ? 'WFH' : 'WFO' }}
+        </span>
       </div>
-      <div v-if="office" class="flex justify-between py-2.5 border-b border-dashed border-hadir-line">
+      <div v-if="office && !isWfh" class="flex justify-between py-2.5 border-b border-dashed border-hadir-line">
         <span class="text-[13px] text-hadir-ink-70">Lokasi</span>
         <span class="text-sm font-semibold text-hadir-ink truncate ml-3">{{ office.name }}</span>
       </div>
-      <div class="flex justify-between py-2.5 border-b border-dashed border-hadir-line">
+      <div v-if="!isWfh" class="flex justify-between py-2.5 border-b border-dashed border-hadir-line">
         <span class="text-[13px] text-hadir-ink-70">Jarak</span>
         <span class="text-sm font-semibold text-hadir-ink">{{ successResult.distance_m }} m dari titik kantor</span>
       </div>
@@ -209,8 +215,24 @@ onMounted(() => locate())
       <div class="flex-1 text-center text-[17px] font-semibold text-hadir-ink mr-[38px]">{{ actionLabel }}</div>
     </div>
 
+    <!-- WFH banner — titik lokasi dimatikan admin -->
+    <div v-if="isWfh" class="mx-5 mt-2 rounded-[22px] border border-hadir-teal/30 bg-hadir-teal-sft p-5 flex items-start gap-3.5">
+      <div class="w-12 h-12 rounded-2xl bg-white flex items-center justify-center flex-shrink-0 shadow-hadir-soft">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0E7C66" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 10.5L12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /><path d="M10 20v-5h4v5" />
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <p class="text-[15px] font-bold text-hadir-teal-dk">Mode WFH aktif</p>
+        <p class="text-[13px] text-hadir-ink-70 mt-1 leading-[1.5]">
+          Admin telah mematikan pengecekan titik lokasi untuk akun Anda. Anda bisa langsung
+          {{ actionLabel.toLowerCase() }} tanpa perlu berada di radius kantor.
+        </p>
+      </div>
+    </div>
+
     <!-- map mockup -->
-    <div class="mx-5 mt-2 rounded-[22px] overflow-hidden border border-hadir-line h-[280px] relative" style="background:linear-gradient(180deg,#E8F1EE 0%,#D6E7E0 100%)">
+    <div v-else class="mx-5 mt-2 rounded-[22px] overflow-hidden border border-hadir-line h-[280px] relative" style="background:linear-gradient(180deg,#E8F1EE 0%,#D6E7E0 100%)">
       <svg width="100%" height="100%" viewBox="0 0 360 280" preserveAspectRatio="none" class="absolute inset-0">
         <path d="M-10 90 Q 90 70, 180 110 T 380 100" stroke="#fff" stroke-width="14" fill="none" stroke-linecap="round" />
         <path d="M50 -10 Q 60 90, 130 140 T 230 290" stroke="#fff" stroke-width="11" fill="none" stroke-linecap="round" />
@@ -255,9 +277,9 @@ onMounted(() => locate())
         <div class="flex items-center gap-2.5">
           <div
             class="w-9 h-9 rounded-full flex items-center justify-center"
-            :class="position && inRange ? 'bg-hadir-teal-sft' : position ? 'bg-hadir-red-sft' : 'bg-hadir-bg'"
+            :class="(isWfh || (position && inRange)) ? 'bg-hadir-teal-sft' : position ? 'bg-hadir-red-sft' : 'bg-hadir-bg'"
           >
-            <svg v-if="position && inRange" width="16" height="16" viewBox="0 0 14 14" fill="none">
+            <svg v-if="isWfh || (position && inRange)" width="16" height="16" viewBox="0 0 14 14" fill="none">
               <path d="M2 7l3.5 3.5L12 3" stroke="#0E7C66" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
             <svg v-else-if="position" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E53E3E" stroke-width="2" stroke-linecap="round">
@@ -271,11 +293,12 @@ onMounted(() => locate())
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-[15px] font-semibold text-hadir-ink">
-              {{ !position ? 'Mengambil lokasi…' : inRange ? 'Lokasi terverifikasi' : 'Di luar radius kantor' }}
+              {{ isWfh ? 'Siap absen — Mode WFH' : !position ? 'Mengambil lokasi…' : inRange ? 'Lokasi terverifikasi' : 'Di luar radius kantor' }}
             </p>
-            <p v-if="office" class="text-xs text-hadir-ink-70 mt-0.5 truncate">{{ office.name }}</p>
+            <p v-if="isWfh" class="text-xs text-hadir-ink-70 mt-0.5 truncate">Tanpa pengecekan titik lokasi</p>
+            <p v-else-if="office" class="text-xs text-hadir-ink-70 mt-0.5 truncate">{{ office.name }}</p>
           </div>
-          <div v-if="distance !== null" class="text-xs font-bold flex-shrink-0" :class="inRange ? 'text-hadir-teal' : 'text-hadir-red'">
+          <div v-if="!isWfh && distance !== null" class="text-xs font-bold flex-shrink-0" :class="inRange ? 'text-hadir-teal' : 'text-hadir-red'">
             {{ distance }} m
           </div>
         </div>
@@ -311,7 +334,7 @@ onMounted(() => locate())
     <!-- CTA -->
     <div class="px-5 pt-5 pb-2">
       <button
-        :disabled="!position || !inRange || status === 'submitting' || (action === 'check_in' && !!today.check_in) || (action === 'check_out' && !!today.check_out)"
+        :disabled="!canSubmit || status === 'submitting' || (action === 'check_in' && !!today.check_in) || (action === 'check_out' && !!today.check_out)"
         class="relative h-16 w-full rounded-2xl bg-hadir-teal overflow-hidden shadow-hadir-cta active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 text-white font-semibold text-base"
         @click="submit"
       >
@@ -325,7 +348,7 @@ onMounted(() => locate())
         </svg>
       </button>
       <p class="text-center mt-3 text-[13px] text-hadir-ink-70">
-        Pastikan GPS aktif &amp; berada di radius kantor
+        {{ isWfh ? 'Mode WFH — absen tanpa perlu titik lokasi' : 'Pastikan GPS aktif & berada di radius kantor' }}
       </p>
     </div>
   </div>

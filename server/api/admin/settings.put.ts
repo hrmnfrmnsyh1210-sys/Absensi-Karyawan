@@ -1,7 +1,7 @@
 import type { ResultSetHeader } from 'mysql2'
 
 export default defineEventHandler(async (event) => {
-  requireAdmin(event)
+  const auth = requireAdmin(event)
   const body = await readBody<{
     work_start_time?: string
     work_end_time?: string
@@ -50,6 +50,12 @@ export default defineEventHandler(async (event) => {
       [k, v]
     )
   }
+
+  await recordActivity(event, auth, {
+    action: 'update',
+    entity: 'settings',
+    summary: `Mengubah pengaturan kerja — jam ${start}-${end}, ${days.length} hari kerja, kuota cuti ${quota} hari`
+  })
 
   return getAppSettings()
 })

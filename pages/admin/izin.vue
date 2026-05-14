@@ -15,6 +15,8 @@ interface Leave {
   nip: string
   user_name: string
   reviewer_name: string | null
+  attachment_name: string | null
+  attachment_type: string | null
 }
 
 const api = useApi()
@@ -26,6 +28,21 @@ const reviewing = ref<Leave | null>(null)
 const reviewNote = ref('')
 const reviewError = ref<string | null>(null)
 const deciding = ref(false)
+const attachmentBusy = ref<number | null>(null)
+
+async function openAttachment(l: Leave) {
+  attachmentBusy.value = l.id
+  try {
+    const blob = await api<Blob>(`/api/leaves/attachment/${l.id}`, { responseType: 'blob' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  } catch {
+    alert('Gagal membuka lampiran')
+  } finally {
+    attachmentBusy.value = null
+  }
+}
 
 // Counters per status (loaded once for tab badges)
 const counts = ref({ pending: 0, approved: 0, rejected: 0 })
@@ -204,6 +221,18 @@ const typeLabels: Record<Leave['type'], string> = {
             >
               <span class="font-semibold not-italic text-hadir-ink">{{ l.reviewer_name || '-' }}:</span> {{ l.review_note }}
             </p>
+            <button
+              v-if="l.attachment_name"
+              type="button"
+              :disabled="attachmentBusy === l.id"
+              class="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-hadir-teal disabled:opacity-50"
+              @click="openAttachment(l)"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+              {{ attachmentBusy === l.id ? 'Membuka…' : 'Lihat lampiran' }}
+            </button>
           </div>
         </div>
 
@@ -281,6 +310,25 @@ const typeLabels: Record<Leave['type'], string> = {
             <div class="mt-3">
               <div class="text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1.5">Alasan</div>
               <p class="text-sm text-hadir-ink leading-relaxed">{{ reviewing.reason }}</p>
+            </div>
+            <div v-if="reviewing.attachment_name" class="mt-3 pt-3 border-t border-hadir-line">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1.5">Lampiran</div>
+              <button
+                type="button"
+                :disabled="attachmentBusy === reviewing.id"
+                class="w-full flex items-center gap-2.5 rounded-xl bg-hadir-bg border border-hadir-line px-3 py-2.5 text-left active:scale-[0.99] disabled:opacity-50 transition"
+                @click="openAttachment(reviewing)"
+              >
+                <span class="w-9 h-9 rounded-lg bg-hadir-teal-sft flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-hadir-teal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-semibold text-hadir-ink truncate">{{ reviewing.attachment_name }}</span>
+                  <span class="block text-[11px] text-hadir-teal">{{ attachmentBusy === reviewing.id ? 'Membuka…' : 'Ketuk untuk membuka' }}</span>
+                </span>
+              </button>
             </div>
           </div>
 

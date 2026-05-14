@@ -31,5 +31,12 @@ export default defineEventHandler(async (event) => {
     [name, dateFrom, dateTo, description, auth.sub]
   )
 
+  await recordActivity(event, auth, {
+    action: 'create',
+    entity: 'holiday',
+    entityId: result.insertId,
+    summary: `Menambahkan hari libur "${name}" (${dateFrom} s/d ${dateTo})`
+  })
+
   return { id: result.insertId, name, date_from: dateFrom, date_to: dateTo, description }
 })

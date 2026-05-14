@@ -18,7 +18,7 @@ async function onSubmit() {
   loading.value = true
   try {
     const u = await login(identifier.value, password.value)
-    await navigateTo(u.role === 'admin' ? '/admin' : '/')
+    await navigateTo(u.role !== 'pegawai' ? '/admin' : '/')
   } catch (e: any) {
     error.value = e?.data?.statusMessage || e?.statusMessage || 'Gagal login'
   } finally {
@@ -171,7 +171,8 @@ async function onSubmit() {
 
           <p class="text-[11px] text-hadir-ink-50 text-center pt-2 border-t border-hadir-line leading-relaxed">
             Demo akun
-            <span class="block mt-0.5 font-mono text-hadir-ink">admin@example.com / admin123</span>
+            <span class="block mt-0.5 font-mono text-hadir-ink">superadmin@telkomakses.co.id / superadmin123</span>
+            <span class="block font-mono text-hadir-ink">admin@telkomakses.co.id / admin123</span>
           </p>
         </form>
       </div>

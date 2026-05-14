@@ -1,7 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2'
 
 export default defineEventHandler(async (event) => {
-  requireAdmin(event)
+  const auth = requireAdmin(event)
   const body = await readBody<{
     name?: string
     latitude?: number
@@ -33,6 +33,12 @@ export default defineEventHandler(async (event) => {
       'UPDATE offices SET name = ?, latitude = ?, longitude = ?, radius_m = ? WHERE id = ?',
       [name, lat, lng, radius, existing[0].id]
     )
+    await recordActivity(event, auth, {
+      action: 'update',
+      entity: 'office',
+      entityId: existing[0].id,
+      summary: `Mengubah lokasi kantor "${name}" — radius ${radius} m`
+    })
     return { id: existing[0].id, name, latitude: lat, longitude: lng, radius_m: radius }
   }
 
@@ -40,5 +46,11 @@ export default defineEventHandler(async (event) => {
     'INSERT INTO offices (name, latitude, longitude, radius_m) VALUES (?, ?, ?, ?)',
     [name, lat, lng, radius]
   )
+  await recordActivity(event, auth, {
+    action: 'create',
+    entity: 'office',
+    entityId: result.insertId,
+    summary: `Menambahkan lokasi kantor "${name}" — radius ${radius} m`
+  })
   return { id: result.insertId, name, latitude: lat, longitude: lng, radius_m: radius }
 })

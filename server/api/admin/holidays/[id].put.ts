@@ -1,7 +1,7 @@
 import type { ResultSetHeader } from 'mysql2'
 
 export default defineEventHandler(async (event) => {
-  requireAdmin(event)
+  const auth = requireAdmin(event)
   const id = Number(getRouterParam(event, 'id'))
   if (!Number.isInteger(id) || id <= 0) {
     throw createError({ statusCode: 400, statusMessage: 'ID tidak valid' })
@@ -38,5 +38,13 @@ export default defineEventHandler(async (event) => {
   if (result.affectedRows === 0) {
     throw createError({ statusCode: 404, statusMessage: 'Hari libur tidak ditemukan' })
   }
+
+  await recordActivity(event, auth, {
+    action: 'update',
+    entity: 'holiday',
+    entityId: id,
+    summary: `Memperbarui hari libur "${name}" (${dateFrom} s/d ${dateTo})`
+  })
+
   return { id, name, date_from: dateFrom, date_to: dateTo, description }
 })

@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  requireAdmin(event)
+  const auth = requireAdmin(event)
   const body = await readBody<{ year?: number }>(event)
 
   let year: number | undefined
@@ -12,6 +12,11 @@ export default defineEventHandler(async (event) => {
 
   try {
     const result = await syncNationalHolidays(year)
+    await recordActivity(event, auth, {
+      action: 'sync',
+      entity: 'holiday',
+      summary: `Sinkronisasi ${result.count} hari libur nasional tahun ${result.year}`
+    })
     return {
       ...result,
       message: `${result.count} hari libur nasional tahun ${result.year} berhasil disinkronkan`

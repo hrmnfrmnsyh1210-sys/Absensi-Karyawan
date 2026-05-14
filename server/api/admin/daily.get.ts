@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
     latitude: number
     longitude: number
     distance_m: number
-    status: 'valid' | 'out_of_range'
+    status: 'valid' | 'out_of_range' | 'wfh'
   }
 
   const byUser = new Map<number, { check_in: AttRec | null; check_out: AttRec | null }>()

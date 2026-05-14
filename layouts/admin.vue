@@ -2,7 +2,7 @@
 const { user, logout } = useAuth();
 const route = useRoute();
 
-type IconName = "chart" | "users" | "list" | "inbox" | "cog" | "cal" | "today";
+type IconName = "chart" | "users" | "list" | "inbox" | "cog" | "cal" | "today" | "log";
 interface NavItem {
   path: string;
   label: string;
@@ -16,20 +16,30 @@ const primaryNav: NavItem[] = [
   { path: "/admin/rekap", label: "Rekap", icon: "list" },
 ];
 
-const profileMenu: NavItem[] = [
-  { path: "/admin/pegawai", label: "Pegawai", icon: "users" },
-  { path: "/admin/libur", label: "Hari Libur", icon: "cal" },
-  { path: "/admin/pengaturan", label: "Pengaturan", icon: "cog" },
-];
+// Log Aktivitas hanya untuk super admin.
+const profileMenu = computed<NavItem[]>(() => {
+  const items: NavItem[] = [
+    { path: "/admin/pegawai", label: "Pegawai", icon: "users" },
+    { path: "/admin/libur", label: "Hari Libur", icon: "cal" },
+    { path: "/admin/pengaturan", label: "Pengaturan", icon: "cog" },
+  ];
+  if (user.value?.role === "super_admin") {
+    items.splice(1, 0, { path: "/admin/log", label: "Log Aktivitas", icon: "log" });
+  }
+  return items;
+});
 
-const navItems = [...primaryNav, ...profileMenu];
+const navItems = computed(() => [...primaryNav, ...profileMenu.value]);
 
 const profileOpen = ref(false);
 
 watch(() => route.path, () => { profileOpen.value = false });
 
 const currentTitle = computed(
-  () => navItems.find((i) => i.path === route.path)?.label || "Admin",
+  () => navItems.value.find((i) => i.path === route.path)?.label || "Admin",
+);
+const roleLabel = computed(() =>
+  user.value?.role === "super_admin" ? "Super Admin" : "Admin",
 );
 const initials = computed(() => {
   const n = user.value?.name?.trim() || "A";
@@ -192,6 +202,19 @@ function doLogout() {
               <path
                 d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
               />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'log'"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="w-5 h-5"
+            >
+              <path d="M3 3v18h18" />
+              <path d="M7 14l4-4 3 3 5-6" />
             </svg>
           </span>
           {{ item.label }}
@@ -399,7 +422,7 @@ function doLogout() {
               </div>
               <div class="flex-1 min-w-0">
                 <div class="font-bold text-hadir-ink truncate">{{ user?.name }}</div>
-                <div class="text-[12px] text-hadir-ink-70 truncate">Admin · {{ user?.email }}</div>
+                <div class="text-[12px] text-hadir-ink-70 truncate">{{ roleLabel }} · {{ user?.email }}</div>
               </div>
               <button
                 class="w-9 h-9 rounded-full hover:bg-hadir-bg flex items-center justify-center flex-shrink-0"
@@ -477,6 +500,19 @@ function doLogout() {
                     <path
                       d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
                     />
+                  </svg>
+                  <svg
+                    v-else-if="item.icon === 'log'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="w-5 h-5"
+                  >
+                    <path d="M3 3v18h18" />
+                    <path d="M7 14l4-4 3 3 5-6" />
                   </svg>
                 </span>
                 <span class="text-sm flex-1">{{ item.label }}</span>

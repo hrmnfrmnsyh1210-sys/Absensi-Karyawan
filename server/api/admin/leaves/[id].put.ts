@@ -64,5 +64,12 @@ export default defineEventHandler(async (event) => {
     [leave.user_id, isApproved ? 'leave_approved' : 'leave_rejected', title, notifBody, id]
   )
 
+  await recordActivity(event, auth, {
+    action: isApproved ? 'approve' : 'reject',
+    entity: 'leave',
+    entityId: id,
+    summary: `${isApproved ? 'Menyetujui' : 'Menolak'} ${typeLabel.toLowerCase()} (${rangeLabel})`
+  })
+
   return { id, status, review_note: note }
 })

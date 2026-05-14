@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
   const [rows] = await db.query<RowDataPacket[]>(
     `SELECT l.id, l.type, l.date_from, l.date_to, l.reason, l.status,
             l.review_note, l.reviewed_at, l.created_at,
+            l.attachment_name, l.attachment_type,
             u.id AS user_id, u.nip, u.name AS user_name,
             r.name AS reviewer_name
      FROM leaves l

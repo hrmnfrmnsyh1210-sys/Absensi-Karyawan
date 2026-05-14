@@ -78,7 +78,7 @@ export default defineEventHandler(async (event) => {
       const fmt = (k: string, v: any) => {
         if (k === 'recorded_at') return new Date(v).toLocaleString('id-ID')
         if (k === 'type') return v === 'check_in' ? 'Masuk' : 'Pulang'
-        if (k === 'status') return v === 'valid' ? 'Valid' : 'Out of range'
+        if (k === 'status') return v === 'valid' ? 'Valid' : v === 'wfh' ? 'WFH' : 'Out of range'
         return String(v)
       }
       for (const c of cols) {

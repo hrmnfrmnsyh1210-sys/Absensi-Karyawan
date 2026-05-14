@@ -4,9 +4,10 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) NOT NULL UNIQUE,
   name VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('admin', 'pegawai') NOT NULL DEFAULT 'pegawai',
+  role ENUM('super_admin', 'admin', 'pegawai') NOT NULL DEFAULT 'pegawai',
   jabatan VARCHAR(128) NULL,
   tanggal_lahir DATE NULL,
+  wfh TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -28,7 +29,7 @@ CREATE TABLE IF NOT EXISTS attendance (
   latitude DECIMAL(10, 7) NOT NULL,
   longitude DECIMAL(10, 7) NOT NULL,
   distance_m INT NOT NULL,
-  status ENUM('valid', 'out_of_range') NOT NULL DEFAULT 'valid',
+  status ENUM('valid', 'out_of_range', 'wfh') NOT NULL DEFAULT 'valid',
   user_agent VARCHAR(512),
   ip_address VARCHAR(64),
   recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -50,6 +51,9 @@ CREATE TABLE IF NOT EXISTS leaves (
   date_from DATE NOT NULL,
   date_to DATE NOT NULL,
   reason TEXT NOT NULL,
+  attachment_path VARCHAR(512) NULL,
+  attachment_name VARCHAR(255) NULL,
+  attachment_type VARCHAR(128) NULL,
   status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
   reviewed_by INT NULL,
   reviewed_at TIMESTAMP NULL,
@@ -74,6 +78,22 @@ CREATE TABLE IF NOT EXISTS holidays (
   INDEX idx_date_range (date_from, date_to),
   INDEX idx_source (source),
   CONSTRAINT fk_holidays_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  actor_id INT NULL,
+  actor_name VARCHAR(255) NOT NULL,
+  actor_role VARCHAR(32) NOT NULL,
+  action VARCHAR(64) NOT NULL,
+  entity VARCHAR(64) NOT NULL,
+  entity_id INT NULL,
+  summary VARCHAR(512) NOT NULL,
+  ip_address VARCHAR(64) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_created (created_at),
+  INDEX idx_actor (actor_id),
+  CONSTRAINT fk_log_actor FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS notifications (

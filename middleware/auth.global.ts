@@ -12,7 +12,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/login')
   }
 
-  if (to.path.startsWith('/admin') && user.value.role !== 'admin') {
+  // Panel admin: hanya admin & super admin.
+  if (to.path.startsWith('/admin') && user.value.role === 'pegawai') {
     return navigateTo('/')
+  }
+  // Log aktivitas: khusus super admin.
+  if (to.path.startsWith('/admin/log') && user.value.role !== 'super_admin') {
+    return navigateTo('/admin')
   }
 })

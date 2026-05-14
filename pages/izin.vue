@@ -10,6 +10,8 @@ interface Leave {
   reviewed_at: string | null
   reviewer_name: string | null
   created_at: string
+  attachment_name: string | null
+  attachment_type: string | null
 }
 
 const api = useApi()
@@ -28,6 +30,41 @@ const form = ref({
   reason: ''
 })
 
+const MAX_ATTACHMENT_MB = 5
+const file = ref<File | null>(null)
+const attachmentBusy = ref<number | null>(null)
+
+function onFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const f = input.files?.[0] || null
+  if (f && f.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
+    error.value = `Ukuran lampiran maksimal ${MAX_ATTACHMENT_MB} MB`
+    input.value = ''
+    file.value = null
+    return
+  }
+  error.value = null
+  file.value = f
+}
+
+function clearFile() {
+  file.value = null
+}
+
+async function openAttachment(l: Leave) {
+  attachmentBusy.value = l.id
+  try {
+    const blob = await api<Blob>(`/api/leaves/attachment/${l.id}`, { responseType: 'blob' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  } catch {
+    alert('Gagal membuka lampiran')
+  } finally {
+    attachmentBusy.value = null
+  }
+}
+
 async function load() {
   loading.value = true
   try {
@@ -44,6 +81,7 @@ await load()
 
 function openDialog() {
   form.value = { type: 'cuti', date_from: today, date_to: today, reason: '' }
+  file.value = null
   error.value = null
   dialogOpen.value = true
 }
@@ -52,7 +90,13 @@ async function submit() {
   error.value = null
   submitting.value = true
   try {
-    await api('/api/leaves', { method: 'POST', body: form.value })
+    const fd = new FormData()
+    fd.append('type', form.value.type)
+    fd.append('date_from', form.value.date_from)
+    fd.append('date_to', form.value.date_to)
+    fd.append('reason', form.value.reason)
+    if (file.value) fd.append('file', file.value)
+    await api('/api/leaves', { method: 'POST', body: fd })
     dialogOpen.value = false
     await load()
   } catch (e: any) {
@@ -221,6 +265,18 @@ const statusMap: Record<Leave['status'], { label: string; bg: string; fg: string
               <p class="text-[11px] text-hadir-ink-50 font-semibold">Catatan {{ l.reviewer_name || 'admin' }}</p>
               <p class="text-xs text-hadir-ink-70 italic">{{ l.review_note }}</p>
             </div>
+            <button
+              v-if="l.attachment_name"
+              type="button"
+              :disabled="attachmentBusy === l.id"
+              class="mt-2.5 inline-flex items-center gap-1.5 text-[12px] font-semibold text-hadir-teal disabled:opacity-50"
+              @click="openAttachment(l)"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+              {{ attachmentBusy === l.id ? 'Membuka…' : 'Lihat lampiran' }}
+            </button>
           </div>
         </div>
       </div>
@@ -328,17 +384,50 @@ const statusMap: Record<Leave['status'], { label: string; bg: string; fg: string
               <p class="text-[11px] text-hadir-ink-50 mt-2 text-right">{{ form.reason.length }} / 280</p>
             </div>
 
-            <!-- attachment placeholder -->
-            <div class="bg-white rounded-2xl border-[1.5px] border-dashed border-hadir-line p-4 flex items-center gap-3 opacity-60">
-              <div class="w-10 h-10 rounded-[10px] bg-hadir-amber-sft flex items-center justify-center">
+            <!-- attachment -->
+            <label
+              v-if="!file"
+              class="bg-white rounded-2xl border-[1.5px] border-dashed border-hadir-line p-4 flex items-center gap-3 cursor-pointer active:scale-[0.99] transition"
+            >
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/heic,application/pdf"
+                class="hidden"
+                @change="onFileChange"
+              >
+              <div class="w-10 h-10 rounded-[10px] bg-hadir-amber-sft flex items-center justify-center flex-shrink-0">
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <path d="M11 2H4v14h10V5l-3-3z M11 2v3h3" stroke="#F59E0B" stroke-width="1.6" stroke-linejoin="round" />
                 </svg>
               </div>
-              <div class="flex-1">
+              <div class="flex-1 min-w-0">
                 <p class="text-sm font-semibold text-hadir-ink">Tambah lampiran</p>
-                <p class="text-xs text-hadir-ink-50 mt-0.5">Surat dokter / undangan (segera hadir)</p>
+                <p class="text-xs text-hadir-ink-50 mt-0.5">PDF / gambar (jpg, png) · maks {{ MAX_ATTACHMENT_MB }} MB</p>
               </div>
+            </label>
+            <div
+              v-else
+              class="bg-white rounded-2xl border-[1.5px] border-hadir-teal/40 p-4 flex items-center gap-3"
+            >
+              <div class="w-10 h-10 rounded-[10px] bg-hadir-teal-sft flex items-center justify-center flex-shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E7C66" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-hadir-ink truncate">{{ file.name }}</p>
+                <p class="text-xs text-hadir-ink-50 mt-0.5">{{ (file.size / 1024).toFixed(0) }} KB · siap diunggah</p>
+              </div>
+              <button
+                type="button"
+                class="w-8 h-8 rounded-full bg-hadir-bg text-hadir-ink-70 flex items-center justify-center flex-shrink-0 active:scale-95"
+                aria-label="Hapus lampiran"
+                @click="clearFile"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
 
             <p

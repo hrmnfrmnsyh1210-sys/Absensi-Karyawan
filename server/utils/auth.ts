@@ -2,10 +2,12 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import type { H3Event } from 'h3'
 
+export type UserRole = 'super_admin' | 'admin' | 'pegawai'
+
 export interface JwtPayload {
   sub: number
   nip: string
-  role: 'admin' | 'pegawai'
+  role: UserRole
 }
 
 export function hashPassword(plain: string) {
@@ -34,10 +36,20 @@ export function requireAuth(event: H3Event): JwtPayload {
   }
 }
 
+// Admin & super admin sama-sama punya akses panel admin.
 export function requireAdmin(event: H3Event): JwtPayload {
   const payload = requireAuth(event)
-  if (payload.role !== 'admin') {
+  if (payload.role !== 'admin' && payload.role !== 'super_admin') {
     throw createError({ statusCode: 403, statusMessage: 'Hanya admin yang boleh mengakses' })
+  }
+  return payload
+}
+
+// Aksi yang hanya boleh dilakukan super admin (kelola admin, lihat activity log).
+export function requireSuperAdmin(event: H3Event): JwtPayload {
+  const payload = requireAuth(event)
+  if (payload.role !== 'super_admin') {
+    throw createError({ statusCode: 403, statusMessage: 'Hanya super admin yang boleh mengakses' })
   }
   return payload
 }

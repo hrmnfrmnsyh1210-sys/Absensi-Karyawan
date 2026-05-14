@@ -3,9 +3,10 @@ interface User {
   nip: string
   email: string
   name: string
-  role: 'admin' | 'pegawai'
+  role: 'super_admin' | 'admin' | 'pegawai'
   jabatan?: string | null
   tanggal_lahir?: string | null
+  wfh?: number
 }
 
 export function useAuth() {

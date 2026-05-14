@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
       latitude: Number(r.latitude),
       longitude: Number(r.longitude),
       distance_m: r.distance_m,
-      status: r.status === 'valid' ? 'Valid' : 'Out of range',
+      status: r.status === 'valid' ? 'Valid' : r.status === 'wfh' ? 'WFH' : 'Out of range',
       recorded_at: new Date(r.recorded_at).toLocaleString('id-ID')
     })
   }

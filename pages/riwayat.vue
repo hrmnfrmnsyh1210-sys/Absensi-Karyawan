@@ -5,7 +5,7 @@ interface AttendanceRecord {
   latitude: number
   longitude: number
   distance_m: number
-  status: 'valid' | 'out_of_range'
+  status: 'valid' | 'out_of_range' | 'wfh'
   recorded_at: string
 }
 interface Holiday {
@@ -63,9 +63,9 @@ const grouped = computed<GroupItem[]>(() => {
 })
 
 const stats = computed(() => {
-  const valid = records.value.filter(r => r.status === 'valid').length
+  const valid = records.value.filter(r => r.status === 'valid' || r.status === 'wfh').length
   const checkIns = records.value.filter(r => r.type === 'check_in').length
-  const outOfRange = records.value.filter(r => r.status !== 'valid').length
+  const outOfRange = records.value.filter(r => r.status === 'out_of_range').length
   return { total: records.value.length, valid, checkIns, outOfRange }
 })
 
@@ -195,15 +195,15 @@ function holidayRangeLabel(h: Holiday) {
                     <path d="M12 22s8-7.5 8-13a8 8 0 10-16 0c0 5.5 8 13 8 13z" />
                     <circle cx="12" cy="9" r="2.5" />
                   </svg>
-                  {{ r.distance_m }} m
+                  {{ r.status === 'wfh' ? 'Tanpa titik lokasi' : `${r.distance_m} m` }}
                 </span>
               </div>
             </div>
             <span
               class="px-2 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0"
-              :class="r.status === 'valid' ? 'bg-hadir-teal-sft text-hadir-teal-dk' : 'bg-hadir-red-sft text-red-800'"
+              :class="r.status === 'out_of_range' ? 'bg-hadir-red-sft text-red-800' : 'bg-hadir-teal-sft text-hadir-teal-dk'"
             >
-              {{ r.status === 'valid' ? 'Valid' : 'Luar' }}
+              {{ r.status === 'wfh' ? 'WFH' : r.status === 'valid' ? 'Valid' : 'Luar' }}
             </span>
           </div>
         </div>

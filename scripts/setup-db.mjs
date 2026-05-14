@@ -56,8 +56,9 @@ for (const [k, v] of defaultSettings) {
 console.log('[ok] App settings default diverifikasi')
 
 const seeds = [
-  { nip: 'ADM001', email: 'admin@example.com', name: 'Admin Utama', password: 'admin123', role: 'admin' },
-  { nip: 'P001', email: 'pegawai@example.com', name: 'Budi Pegawai', password: 'pegawai123', role: 'pegawai' }
+  { nip: 'SADM001', email: 'superadmin@telkomakses.co.id', name: 'Super Admin Telkom Akses', password: 'superadmin123', role: 'super_admin' },
+  { nip: 'ADM001', email: 'admin@telkomakses.co.id', name: 'Admin Telkom Akses', password: 'admin123', role: 'admin' },
+  { nip: 'P001', email: 'pegawai@telkomakses.co.id', name: 'Budi Pegawai', password: 'pegawai123', role: 'pegawai' }
 ]
 
 for (const u of seeds) {

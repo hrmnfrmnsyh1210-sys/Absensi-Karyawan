@@ -1,18 +1,39 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'admin' })
 
+type Role = 'super_admin' | 'admin' | 'pegawai'
+
 interface Pegawai {
   id: number
   nip: string
   email: string
   name: string
-  role: 'admin' | 'pegawai'
+  role: Role
   jabatan: string | null
   tanggal_lahir: string | null
+  wfh: number
   created_at: string
 }
 
 const api = useApi()
+const { user } = useAuth()
+const isSuperAdmin = computed(() => user.value?.role === 'super_admin')
+
+const ROLE_LABEL: Record<Role, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  pegawai: 'Pegawai'
+}
+// Admin biasa hanya boleh mengelola pegawai; super admin boleh semua.
+function canManage(p: Pegawai) {
+  return isSuperAdmin.value || p.role === 'pegawai'
+}
+function roleChipClass(role: Role) {
+  if (role === 'super_admin') return 'bg-hadir-amber-sft text-amber-800'
+  if (role === 'admin') return 'bg-hadir-amber-sft text-amber-700'
+  return 'bg-hadir-teal-sft text-hadir-teal-dk'
+}
+
 const list = ref<Pegawai[]>([])
 const search = ref('')
 const loading = ref(false)
@@ -25,9 +46,10 @@ const form = ref({
   email: '',
   name: '',
   password: '',
-  role: 'pegawai' as 'admin' | 'pegawai',
+  role: 'pegawai' as Role,
   jabatan: '',
-  tanggal_lahir: ''
+  tanggal_lahir: '',
+  wfh: false
 })
 
 const detail = ref<Pegawai | null>(null)
@@ -66,7 +88,7 @@ watch(search, () => {
 
 function openAdd() {
   editing.value = null
-  form.value = { nip: '', email: '', name: '', password: '', role: 'pegawai', jabatan: '', tanggal_lahir: '' }
+  form.value = { nip: '', email: '', name: '', password: '', role: 'pegawai', jabatan: '', tanggal_lahir: '', wfh: false }
   dialogOpen.value = true
   error.value = null
 }
@@ -80,7 +102,8 @@ function openEdit(p: Pegawai) {
     password: '',
     role: p.role,
     jabatan: p.jabatan || '',
-    tanggal_lahir: p.tanggal_lahir || ''
+    tanggal_lahir: p.tanggal_lahir || '',
+    wfh: !!p.wfh
   }
   detail.value = null
   dialogOpen.value = true
@@ -122,7 +145,7 @@ function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase()).join('')
 }
 
-const adminCount = computed(() => list.value.filter(p => p.role === 'admin').length)
+const adminCount = computed(() => list.value.filter(p => p.role !== 'pegawai').length)
 const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai').length)
 </script>
 
@@ -200,7 +223,7 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
           <button
             type="button"
             class="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-white ring-2 ring-white active:scale-95 transition"
-            :class="p.role === 'admin'
+            :class="p.role !== 'pegawai'
               ? 'bg-gradient-to-br from-hadir-amber to-amber-600'
               : 'bg-gradient-to-br from-hadir-teal to-hadir-teal-dk'"
             aria-label="Lihat detail profil"
@@ -212,9 +235,14 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
             <div class="flex items-center gap-1.5">
               <div class="font-semibold text-[13px] text-hadir-ink truncate leading-tight">{{ p.name }}</div>
               <span
-                v-if="p.role === 'admin'"
-                class="inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-bold uppercase bg-hadir-amber-sft text-amber-700 flex-shrink-0"
-              >Admin</span>
+                v-if="p.role !== 'pegawai'"
+                class="inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-bold uppercase flex-shrink-0"
+                :class="roleChipClass(p.role)"
+              >{{ ROLE_LABEL[p.role] }}</span>
+              <span
+                v-if="p.wfh"
+                class="inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-bold uppercase bg-hadir-teal-sft text-hadir-teal-dk flex-shrink-0"
+              >WFH</span>
             </div>
             <div class="text-[10px] text-hadir-ink-70 mt-0.5 flex items-center gap-1 leading-tight">
               <span class="font-mono">{{ p.nip }}</span>
@@ -222,7 +250,7 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
               <span class="truncate">{{ p.email }}</span>
             </div>
           </div>
-          <div class="flex gap-1 flex-shrink-0">
+          <div v-if="canManage(p)" class="flex gap-1 flex-shrink-0">
             <button
               class="w-7 h-7 rounded-md bg-hadir-teal-sft text-hadir-teal-dk hover:bg-hadir-teal/20 flex items-center justify-center"
               aria-label="Edit"
@@ -242,6 +270,11 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
               </svg>
             </button>
           </div>
+          <span
+            v-else
+            class="text-[10px] text-hadir-ink-50 flex-shrink-0 px-1"
+            title="Hanya super admin yang dapat mengelola akun admin"
+          >Terkunci</span>
         </div>
       </div>
     </div>
@@ -271,7 +304,7 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
                   <button
                     type="button"
                     class="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 ring-2 ring-white hover:opacity-90 transition"
-                    :class="p.role === 'admin'
+                    :class="p.role !== 'pegawai'
                       ? 'bg-gradient-to-br from-hadir-amber to-amber-600'
                       : 'bg-gradient-to-br from-hadir-teal to-hadir-teal-dk'"
                     aria-label="Lihat detail profil"
@@ -287,15 +320,22 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
               <td class="px-4 py-3">
                 <span
                   class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase"
-                  :class="p.role === 'admin' ? 'bg-hadir-amber-sft text-amber-700' : 'bg-hadir-teal-sft text-hadir-teal-dk'"
+                  :class="roleChipClass(p.role)"
                 >
-                  <span class="w-1 h-1 rounded-full" :class="p.role === 'admin' ? 'bg-hadir-amber' : 'bg-hadir-teal'" />
-                  {{ p.role }}
+                  <span class="w-1 h-1 rounded-full" :class="p.role !== 'pegawai' ? 'bg-hadir-amber' : 'bg-hadir-teal'" />
+                  {{ ROLE_LABEL[p.role] }}
                 </span>
+                <span
+                  v-if="p.wfh"
+                  class="ml-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase bg-hadir-teal-sft text-hadir-teal-dk"
+                >WFH</span>
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
-                <button class="text-hadir-teal hover:text-hadir-teal-dk hover:underline mr-3 font-semibold" @click="openEdit(p)">Edit</button>
-                <button class="text-hadir-red hover:underline font-semibold" @click="remove(p)">Hapus</button>
+                <template v-if="canManage(p)">
+                  <button class="text-hadir-teal hover:text-hadir-teal-dk hover:underline mr-3 font-semibold" @click="openEdit(p)">Edit</button>
+                  <button class="text-hadir-red hover:underline font-semibold" @click="remove(p)">Hapus</button>
+                </template>
+                <span v-else class="text-xs text-hadir-ink-50">Terkunci</span>
               </td>
             </tr>
           </tbody>
@@ -333,10 +373,22 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
             </div>
             <div>
               <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Role</label>
-              <select v-model="form.role" class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
+              <select
+                v-if="isSuperAdmin"
+                v-model="form.role"
+                class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition"
+              >
                 <option value="pegawai">Pegawai</option>
                 <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
               </select>
+              <div
+                v-else
+                class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm flex items-center text-hadir-ink-70"
+                title="Hanya super admin yang dapat menambahkan admin"
+              >
+                Pegawai
+              </div>
             </div>
           </div>
           <div>
@@ -363,6 +415,18 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
             </label>
             <input v-model="form.password" type="password" :required="!editing" minlength="6" class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
           </div>
+          <label
+            class="flex items-start gap-3 rounded-xl border border-hadir-line bg-hadir-bg px-3 py-3 cursor-pointer"
+            :class="form.wfh ? 'border-hadir-teal bg-hadir-teal-sft' : ''"
+          >
+            <input v-model="form.wfh" type="checkbox" class="mt-0.5 w-4 h-4 accent-hadir-teal flex-shrink-0">
+            <span class="min-w-0">
+              <span class="block text-sm font-semibold text-hadir-ink">Mode WFH (matikan titik lokasi)</span>
+              <span class="block text-[11px] text-hadir-ink-70 mt-0.5 leading-snug">
+                Pegawai bisa absen tanpa pengecekan radius GPS kantor.
+              </span>
+            </span>
+          </label>
           <p v-if="error" class="text-sm text-hadir-red bg-hadir-red-sft border border-hadir-red/20 rounded-xl px-3 py-2.5">{{ error }}</p>
           <div class="flex gap-2 pt-2">
             <button type="button" class="flex-1 h-11 rounded-xl bg-white border border-hadir-line text-hadir-ink font-semibold hover:bg-hadir-bg transition" @click="dialogOpen = false">
@@ -393,7 +457,7 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
           <div class="px-5 pt-5 pb-4 flex items-start gap-3">
             <div
               class="w-14 h-14 rounded-full flex items-center justify-center text-base font-bold text-white flex-shrink-0 ring-2 ring-white shadow-hadir-soft"
-              :class="detail.role === 'admin'
+              :class="detail.role !== 'pegawai'
                 ? 'bg-gradient-to-br from-hadir-amber to-amber-600'
                 : 'bg-gradient-to-br from-hadir-teal to-hadir-teal-dk'"
             >
@@ -403,9 +467,9 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
               <div class="font-bold text-hadir-ink text-[16px] leading-tight">{{ detail.name }}</div>
               <span
                 class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
-                :class="detail.role === 'admin' ? 'bg-hadir-amber-sft text-amber-700' : 'bg-hadir-teal-sft text-hadir-teal-dk'"
+                :class="roleChipClass(detail.role)"
               >
-                {{ detail.role }}
+                {{ ROLE_LABEL[detail.role] }}
               </span>
             </div>
             <button
@@ -444,16 +508,34 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
               <dt class="text-[12px] font-semibold text-hadir-ink-50">Email</dt>
               <dd class="text-[13px] text-hadir-ink text-right break-all">{{ detail.email }}</dd>
             </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Absensi</dt>
+              <dd class="text-right">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
+                  :class="detail.wfh ? 'bg-hadir-teal-sft text-hadir-teal-dk' : 'bg-[#EEF2F4] text-hadir-ink-70'"
+                >
+                  {{ detail.wfh ? 'WFH · tanpa titik lokasi' : 'WFO · cek lokasi' }}
+                </span>
+              </dd>
+            </div>
           </dl>
 
           <div class="px-5 pb-5 pt-1">
             <button
+              v-if="canManage(detail)"
               type="button"
               class="w-full h-11 rounded-xl bg-hadir-teal hover:bg-hadir-teal-dk text-white font-bold shadow-hadir-cta transition"
               @click="openEdit(detail)"
             >
-              Edit Pegawai
+              Edit {{ ROLE_LABEL[detail.role] }}
             </button>
+            <p
+              v-else
+              class="text-center text-[12px] text-hadir-ink-50 py-2"
+            >
+              Hanya super admin yang dapat mengubah akun ini.
+            </p>
           </div>
         </div>
       </div>

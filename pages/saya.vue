@@ -9,7 +9,7 @@ interface Office {
 interface AttendanceRecord {
   id: number
   type: 'check_in' | 'check_out'
-  status: 'valid' | 'out_of_range'
+  status: 'valid' | 'out_of_range' | 'wfh'
   recorded_at: string
 }
 interface Leave {
@@ -56,6 +56,13 @@ const scheduleHours = computed(() => `${settings.value.work_start_time}–${sett
 const initials = computed(() => {
   const n = user.value?.name?.trim() || 'U'
   return n.split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase()).join('')
+})
+
+const isStaff = computed(() => user.value?.role !== 'pegawai')
+const roleLabel = computed(() => {
+  if (user.value?.role === 'super_admin') return 'Super Admin'
+  if (user.value?.role === 'admin') return 'Administrator'
+  return 'Karyawan'
 })
 
 const monthLabel = computed(() => new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
@@ -133,7 +140,7 @@ const monthStats = computed(() => {
         <div class="flex-1 min-w-0">
           <p class="text-[19px] font-bold text-white truncate">{{ user?.name || '...' }}</p>
           <p class="text-[13px] text-white/[0.78] truncate">
-            {{ user?.jabatan || (user?.role === 'admin' ? 'Administrator' : 'Karyawan') }} · NIP {{ user?.nip || '—' }}
+            {{ user?.jabatan || roleLabel }} · NIP {{ user?.nip || '—' }}
           </p>
           <div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.18]">
             <span class="w-1.5 h-1.5 rounded-full bg-hadir-amber" />
@@ -216,7 +223,7 @@ const monthStats = computed(() => {
       </div>
 
       <NuxtLink
-        v-if="user?.role === 'admin'"
+        v-if="isStaff"
         to="/admin"
         class="flex items-center gap-3.5 py-3.5 border-b border-hadir-line"
       >
@@ -269,9 +276,9 @@ const monthStats = computed(() => {
               <div class="font-bold text-hadir-ink text-[16px] leading-tight">{{ user?.name }}</div>
               <span
                 class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
-                :class="user?.role === 'admin' ? 'bg-hadir-amber-sft text-amber-700' : 'bg-hadir-teal-sft text-hadir-teal-dk'"
+                :class="isStaff ? 'bg-hadir-amber-sft text-amber-700' : 'bg-hadir-teal-sft text-hadir-teal-dk'"
               >
-                {{ user?.role === 'admin' ? 'Admin' : 'Pegawai' }}
+                {{ roleLabel }}
               </span>
             </div>
             <button
