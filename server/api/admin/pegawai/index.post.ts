@@ -8,6 +8,8 @@ export default defineEventHandler(async (event) => {
     name?: string
     password?: string
     role?: 'admin' | 'pegawai'
+    jabatan?: string
+    tanggal_lahir?: string
   }>(event)
 
   const nip = body?.nip?.trim()
@@ -15,6 +17,8 @@ export default defineEventHandler(async (event) => {
   const name = body?.name?.trim()
   const password = body?.password
   const role = body?.role === 'admin' ? 'admin' : 'pegawai'
+  const jabatan = body?.jabatan?.trim() || null
+  const tanggal_lahir = body?.tanggal_lahir?.trim() || null
 
   if (!nip || !email || !name || !password) {
     throw createError({ statusCode: 400, statusMessage: 'NIP, email, nama, dan password wajib diisi' })
@@ -27,10 +31,10 @@ export default defineEventHandler(async (event) => {
   try {
     const hash = await hashPassword(password)
     const [result] = await db.query<ResultSetHeader>(
-      'INSERT INTO users (nip, email, name, password_hash, role) VALUES (?, ?, ?, ?, ?)',
-      [nip, email, name, hash, role]
+      'INSERT INTO users (nip, email, name, password_hash, role, jabatan, tanggal_lahir) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nip, email, name, hash, role, jabatan, tanggal_lahir]
     )
-    return { id: result.insertId, nip, email, name, role }
+    return { id: result.insertId, nip, email, name, role, jabatan, tanggal_lahir }
   } catch (e: any) {
     if (e?.code === 'ER_DUP_ENTRY') {
       throw createError({ statusCode: 409, statusMessage: 'NIP atau email sudah terdaftar' })

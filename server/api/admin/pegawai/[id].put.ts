@@ -12,6 +12,8 @@ export default defineEventHandler(async (event) => {
     name?: string
     role?: 'admin' | 'pegawai'
     password?: string
+    jabatan?: string
+    tanggal_lahir?: string
   }>(event)
 
   const nip = body?.nip?.trim()
@@ -19,6 +21,8 @@ export default defineEventHandler(async (event) => {
   const name = body?.name?.trim()
   const role = body?.role === 'admin' ? 'admin' : 'pegawai'
   const password = body?.password
+  const jabatan = body?.jabatan?.trim() || null
+  const tanggal_lahir = body?.tanggal_lahir?.trim() || null
 
   if (!nip || !email || !name) {
     throw createError({ statusCode: 400, statusMessage: 'NIP, email, dan nama wajib diisi' })
@@ -32,16 +36,16 @@ export default defineEventHandler(async (event) => {
       }
       const hash = await hashPassword(password)
       await db.query<ResultSetHeader>(
-        'UPDATE users SET nip = ?, email = ?, name = ?, role = ?, password_hash = ? WHERE id = ?',
-        [nip, email, name, role, hash, id]
+        'UPDATE users SET nip = ?, email = ?, name = ?, role = ?, jabatan = ?, tanggal_lahir = ?, password_hash = ? WHERE id = ?',
+        [nip, email, name, role, jabatan, tanggal_lahir, hash, id]
       )
     } else {
       await db.query<ResultSetHeader>(
-        'UPDATE users SET nip = ?, email = ?, name = ?, role = ? WHERE id = ?',
-        [nip, email, name, role, id]
+        'UPDATE users SET nip = ?, email = ?, name = ?, role = ?, jabatan = ?, tanggal_lahir = ? WHERE id = ?',
+        [nip, email, name, role, jabatan, tanggal_lahir, id]
       )
     }
-    return { id, nip, email, name, role }
+    return { id, nip, email, name, role, jabatan, tanggal_lahir }
   } catch (e: any) {
     if (e?.code === 'ER_DUP_ENTRY') {
       throw createError({ statusCode: 409, statusMessage: 'NIP atau email sudah dipakai user lain' })

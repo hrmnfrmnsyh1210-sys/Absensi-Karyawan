@@ -7,6 +7,8 @@ interface Pegawai {
   email: string
   name: string
   role: 'admin' | 'pegawai'
+  jabatan: string | null
+  tanggal_lahir: string | null
   created_at: string
 }
 
@@ -23,8 +25,23 @@ const form = ref({
   email: '',
   name: '',
   password: '',
-  role: 'pegawai' as 'admin' | 'pegawai'
+  role: 'pegawai' as 'admin' | 'pegawai',
+  jabatan: '',
+  tanggal_lahir: ''
 })
+
+const detail = ref<Pegawai | null>(null)
+
+function openDetail(p: Pegawai) {
+  detail.value = p
+}
+
+function formatTanggal(ymd: string | null) {
+  if (!ymd) return '—'
+  const d = new Date(ymd + 'T00:00:00')
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 async function load() {
   loading.value = true
@@ -49,7 +66,7 @@ watch(search, () => {
 
 function openAdd() {
   editing.value = null
-  form.value = { nip: '', email: '', name: '', password: '', role: 'pegawai' }
+  form.value = { nip: '', email: '', name: '', password: '', role: 'pegawai', jabatan: '', tanggal_lahir: '' }
   dialogOpen.value = true
   error.value = null
 }
@@ -61,8 +78,11 @@ function openEdit(p: Pegawai) {
     email: p.email,
     name: p.name,
     password: '',
-    role: p.role
+    role: p.role,
+    jabatan: p.jabatan || '',
+    tanggal_lahir: p.tanggal_lahir || ''
   }
+  detail.value = null
   dialogOpen.value = true
   error.value = null
 }
@@ -177,14 +197,17 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
           class="flex items-center gap-2.5 px-3 py-2.5"
           :class="i < list.length - 1 ? 'border-b border-hadir-line' : ''"
         >
-          <div
-            class="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-white ring-2 ring-white"
+          <button
+            type="button"
+            class="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-white ring-2 ring-white active:scale-95 transition"
             :class="p.role === 'admin'
               ? 'bg-gradient-to-br from-hadir-amber to-amber-600'
               : 'bg-gradient-to-br from-hadir-teal to-hadir-teal-dk'"
+            aria-label="Lihat detail profil"
+            @click="openDetail(p)"
           >
             {{ initials(p.name) }}
-          </div>
+          </button>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
               <div class="font-semibold text-[13px] text-hadir-ink truncate leading-tight">{{ p.name }}</div>
@@ -245,15 +268,18 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
             <tr v-for="p in list" :key="p.id" class="hover:bg-hadir-bg">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
-                  <div
-                    class="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 ring-2 ring-white"
+                  <button
+                    type="button"
+                    class="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 ring-2 ring-white hover:opacity-90 transition"
                     :class="p.role === 'admin'
                       ? 'bg-gradient-to-br from-hadir-amber to-amber-600'
                       : 'bg-gradient-to-br from-hadir-teal to-hadir-teal-dk'"
+                    aria-label="Lihat detail profil"
+                    @click="openDetail(p)"
                   >
                     {{ initials(p.name) }}
-                  </div>
-                  <div class="font-semibold text-hadir-ink">{{ p.name }}</div>
+                  </button>
+                  <button type="button" class="font-semibold text-hadir-ink hover:text-hadir-teal transition" @click="openDetail(p)">{{ p.name }}</button>
                 </div>
               </td>
               <td class="px-4 py-3 font-mono text-xs text-hadir-ink-70">{{ p.nip }}</td>
@@ -321,6 +347,16 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
             <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Email</label>
             <input v-model="form.email" type="email" required class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
           </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Jabatan</label>
+              <input v-model="form.jabatan" type="text" placeholder="cth. Staff IT" class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">Tanggal Lahir</label>
+              <input v-model="form.tanggal_lahir" type="date" class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
+            </div>
+          </div>
           <div>
             <label class="block text-[11px] font-bold uppercase tracking-wider text-hadir-ink-50 mb-1">
               Password {{ editing ? '(kosongkan kalau tidak diubah)' : '' }}
@@ -337,6 +373,89 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
             </button>
           </div>
         </form>
+      </div>
+    </Teleport>
+
+    <!-- Detail profil -->
+    <Teleport to="body">
+      <div
+        v-if="detail"
+        class="fixed inset-0 bg-hadir-ink/50 backdrop-blur-sm flex items-end md:items-center justify-center md:p-4 z-50"
+        @click.self="detail = null"
+      >
+        <div
+          class="bg-white w-full md:max-w-sm md:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto"
+          style="padding-bottom: env(safe-area-inset-bottom);"
+        >
+          <div class="md:hidden w-12 h-1.5 rounded-full bg-hadir-line mx-auto mt-2.5" />
+
+          <!-- Header -->
+          <div class="px-5 pt-5 pb-4 flex items-start gap-3">
+            <div
+              class="w-14 h-14 rounded-full flex items-center justify-center text-base font-bold text-white flex-shrink-0 ring-2 ring-white shadow-hadir-soft"
+              :class="detail.role === 'admin'
+                ? 'bg-gradient-to-br from-hadir-amber to-amber-600'
+                : 'bg-gradient-to-br from-hadir-teal to-hadir-teal-dk'"
+            >
+              {{ initials(detail.name) }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-hadir-ink text-[16px] leading-tight">{{ detail.name }}</div>
+              <span
+                class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                :class="detail.role === 'admin' ? 'bg-hadir-amber-sft text-amber-700' : 'bg-hadir-teal-sft text-hadir-teal-dk'"
+              >
+                {{ detail.role }}
+              </span>
+            </div>
+            <button
+              type="button"
+              class="w-8 h-8 rounded-full text-hadir-ink-70 hover:bg-hadir-bg flex items-center justify-center flex-shrink-0"
+              aria-label="Tutup"
+              @click="detail = null"
+            >
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="h-px bg-hadir-line mx-5" />
+
+          <!-- Fields -->
+          <dl class="px-5 py-3 divide-y divide-hadir-line">
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">NIP</dt>
+              <dd class="text-[13px] text-hadir-ink font-mono text-right">{{ detail.nip }}</dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Jabatan</dt>
+              <dd class="text-[13px] text-hadir-ink text-right">{{ detail.jabatan || '—' }}</dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Nama</dt>
+              <dd class="text-[13px] text-hadir-ink text-right">{{ detail.name }}</dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Tanggal Lahir</dt>
+              <dd class="text-[13px] text-hadir-ink text-right">{{ formatTanggal(detail.tanggal_lahir) }}</dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Email</dt>
+              <dd class="text-[13px] text-hadir-ink text-right break-all">{{ detail.email }}</dd>
+            </div>
+          </dl>
+
+          <div class="px-5 pb-5 pt-1">
+            <button
+              type="button"
+              class="w-full h-11 rounded-xl bg-hadir-teal hover:bg-hadir-teal-dk text-white font-bold shadow-hadir-cta transition"
+              @click="openEdit(detail)"
+            >
+              Edit Pegawai
+            </button>
+          </div>
+        </div>
       </div>
     </Teleport>
   </div>

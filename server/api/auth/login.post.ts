@@ -7,6 +7,8 @@ interface UserRow extends RowDataPacket {
   name: string
   password_hash: string
   role: 'admin' | 'pegawai'
+  jabatan: string | null
+  tanggal_lahir: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -20,7 +22,9 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
   const [rows] = await db.query<UserRow[]>(
-    'SELECT id, nip, email, name, password_hash, role FROM users WHERE email = ? OR nip = ? LIMIT 1',
+    `SELECT id, nip, email, name, password_hash, role, jabatan,
+            DATE_FORMAT(tanggal_lahir, '%Y-%m-%d') AS tanggal_lahir
+     FROM users WHERE email = ? OR nip = ? LIMIT 1`,
     [identifier, identifier]
   )
   const user = rows[0]
@@ -31,6 +35,14 @@ export default defineEventHandler(async (event) => {
   const token = signToken({ sub: user.id, nip: user.nip, role: user.role })
   return {
     token,
-    user: { id: user.id, nip: user.nip, email: user.email, name: user.name, role: user.role }
+    user: {
+      id: user.id,
+      nip: user.nip,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      jabatan: user.jabatan,
+      tanggal_lahir: user.tanggal_lahir
+    }
   }
 })

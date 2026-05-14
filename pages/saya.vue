@@ -60,6 +60,15 @@ const initials = computed(() => {
 
 const monthLabel = computed(() => new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
 
+const detailOpen = ref(false)
+
+function formatTanggal(ymd: string | null | undefined) {
+  if (!ymd) return '—'
+  const d = new Date(ymd + 'T00:00:00')
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 const monthStats = computed(() => {
   const now = new Date()
   const m = now.getMonth(), y = now.getFullYear()
@@ -108,13 +117,23 @@ const monthStats = computed(() => {
     <div class="relative overflow-hidden bg-hadir-teal px-5 pt-7 pb-7">
       <div class="absolute -top-10 -right-12 w-[220px] h-[220px] rounded-full bg-hadir-amber/[0.16]" />
       <div class="relative flex items-center gap-3.5">
-        <div class="w-16 h-16 rounded-full border-[3px] border-white/40 bg-gradient-to-br from-white to-hadir-amber-sft flex items-center justify-center font-bold text-[22px] text-hadir-teal flex-shrink-0">
+        <button
+          type="button"
+          class="relative w-16 h-16 rounded-full border-[3px] border-white/40 bg-gradient-to-br from-white to-hadir-amber-sft flex items-center justify-center font-bold text-[22px] text-hadir-teal flex-shrink-0 active:scale-95 transition"
+          aria-label="Lihat detail profil"
+          @click="detailOpen = true"
+        >
           {{ initials }}
-        </div>
+          <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-hadir-soft">
+            <svg class="w-3 h-3 text-hadir-teal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" />
+            </svg>
+          </span>
+        </button>
         <div class="flex-1 min-w-0">
           <p class="text-[19px] font-bold text-white truncate">{{ user?.name || '...' }}</p>
           <p class="text-[13px] text-white/[0.78] truncate">
-            {{ user?.role === 'admin' ? 'Administrator' : 'Karyawan' }} · NIP {{ user?.nip || '—' }}
+            {{ user?.jabatan || (user?.role === 'admin' ? 'Administrator' : 'Karyawan') }} · NIP {{ user?.nip || '—' }}
           </p>
           <div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.18]">
             <span class="w-1.5 h-1.5 rounded-full bg-hadir-amber" />
@@ -227,5 +246,83 @@ const monthStats = computed(() => {
     <p class="text-center text-[11px] text-hadir-ink-50 mt-6 mb-4">
       Hadir · v1.0 by PT Nusantara
     </p>
+
+    <!-- Detail profil -->
+    <Teleport to="body">
+      <div
+        v-if="detailOpen"
+        class="fixed inset-0 bg-hadir-ink/50 backdrop-blur-sm flex items-end justify-center z-50"
+        @click.self="detailOpen = false"
+      >
+        <div
+          class="bg-white w-full max-w-md rounded-t-3xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto"
+          style="padding-bottom: env(safe-area-inset-bottom);"
+        >
+          <div class="w-12 h-1.5 rounded-full bg-hadir-line mx-auto mt-2.5" />
+
+          <!-- Header -->
+          <div class="px-5 pt-5 pb-4 flex items-start gap-3">
+            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-hadir-teal to-hadir-teal-dk text-white flex items-center justify-center text-base font-bold flex-shrink-0 ring-2 ring-white shadow-hadir-soft">
+              {{ initials }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-hadir-ink text-[16px] leading-tight">{{ user?.name }}</div>
+              <span
+                class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                :class="user?.role === 'admin' ? 'bg-hadir-amber-sft text-amber-700' : 'bg-hadir-teal-sft text-hadir-teal-dk'"
+              >
+                {{ user?.role === 'admin' ? 'Admin' : 'Pegawai' }}
+              </span>
+            </div>
+            <button
+              type="button"
+              class="w-8 h-8 rounded-full text-hadir-ink-70 hover:bg-hadir-bg flex items-center justify-center flex-shrink-0"
+              aria-label="Tutup"
+              @click="detailOpen = false"
+            >
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="h-px bg-hadir-line mx-5" />
+
+          <!-- Fields -->
+          <dl class="px-5 py-3 divide-y divide-hadir-line">
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">NIP</dt>
+              <dd class="text-[13px] text-hadir-ink font-mono text-right">{{ user?.nip || '—' }}</dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Jabatan</dt>
+              <dd class="text-[13px] text-hadir-ink text-right">{{ user?.jabatan || '—' }}</dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Nama</dt>
+              <dd class="text-[13px] text-hadir-ink text-right">{{ user?.name }}</dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Tanggal Lahir</dt>
+              <dd class="text-[13px] text-hadir-ink text-right">{{ formatTanggal(user?.tanggal_lahir) }}</dd>
+            </div>
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <dt class="text-[12px] font-semibold text-hadir-ink-50">Email</dt>
+              <dd class="text-[13px] text-hadir-ink text-right break-all">{{ user?.email }}</dd>
+            </div>
+          </dl>
+
+          <div class="px-5 pb-5 pt-1">
+            <button
+              type="button"
+              class="w-full h-11 rounded-xl bg-white border border-hadir-line text-hadir-ink font-semibold hover:bg-hadir-bg transition"
+              @click="detailOpen = false"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

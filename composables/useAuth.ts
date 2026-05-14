@@ -4,6 +4,8 @@ interface User {
   email: string
   name: string
   role: 'admin' | 'pegawai'
+  jabatan?: string | null
+  tanggal_lahir?: string | null
 }
 
 export function useAuth() {

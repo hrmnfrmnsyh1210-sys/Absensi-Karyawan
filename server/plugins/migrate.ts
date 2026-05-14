@@ -19,7 +19,9 @@ const MIGRATIONS: string[] = [
 // Re-running these is harmless: duplicate-column / duplicate-key errors are ignored.
 const ALTERS: string[] = [
   `ALTER TABLE holidays ADD COLUMN source ENUM('manual', 'national') NOT NULL DEFAULT 'manual'`,
-  `ALTER TABLE holidays ADD INDEX idx_source (source)`
+  `ALTER TABLE holidays ADD INDEX idx_source (source)`,
+  `ALTER TABLE users ADD COLUMN jabatan VARCHAR(128) NULL`,
+  `ALTER TABLE users ADD COLUMN tanggal_lahir DATE NULL`
 ]
 
 // MySQL error codes / errnos that mean "this migration was already applied".
