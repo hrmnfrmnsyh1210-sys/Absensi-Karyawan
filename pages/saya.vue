@@ -19,6 +19,12 @@ interface Leave {
   date_to: string
   status: 'pending' | 'approved' | 'rejected'
 }
+interface Holiday {
+  id: number
+  name: string
+  date_from: string
+  date_to: string
+}
 
 const api = useApi()
 const { user, logout } = useAuth()
@@ -27,13 +33,22 @@ const { settings, load: loadSettings } = useSettings()
 const office = ref<Office | null>(null)
 const records = ref<AttendanceRecord[]>([])
 const leaves = ref<Leave[]>([])
+const holidays = ref<Holiday[]>([])
 
 await Promise.all([
   api<Office>('/api/office').catch(() => null).then(v => office.value = v),
   api<AttendanceRecord[]>('/api/attendance/history').catch(() => []).then(v => records.value = v),
   api<Leave[]>('/api/leaves/mine').catch(() => []).then(v => leaves.value = v),
+  api<Holiday[]>('/api/holidays').catch(() => []).then(v => holidays.value = v),
   loadSettings()
 ])
+
+// A holiday (tanggal merah / cuti bersama) is never counted as alpa, even if it
+// falls on a configured work day — employees may absen on a holiday, but not
+// doing so isn't a violation.
+function isHolidayYmd(ymd: string) {
+  return holidays.value.some(h => ymd >= h.date_from.slice(0, 10) && ymd <= h.date_to.slice(0, 10))
+}
 
 const scheduleLabel = computed(() => workDaysLabel(settings.value.work_days))
 const scheduleHours = computed(() => `${settings.value.work_start_time}–${settings.value.work_end_time}`)
@@ -77,6 +92,8 @@ const monthStats = computed(() => {
   for (let day = 1; day <= today.getDate(); day++) {
     const d = new Date(y, m, day)
     if (!settings.value.work_days.includes(d.getDay())) continue
+    const ymd = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    if (isHolidayYmd(ymd)) continue
     const key = d.toDateString()
     if (checkInDays.has(key) || leaveDays.has(key)) continue
     alpa++
@@ -164,6 +181,19 @@ const monthStats = computed(() => {
         <svg width="7" height="12" viewBox="0 0 7 12" fill="none">
           <path d="M1 1l5 5-5 5" stroke="#7C8893" stroke-width="1.6" stroke-linecap="round" />
         </svg>
+      </div>
+
+      <div class="flex items-center gap-3.5 py-3.5 border-b border-hadir-line">
+        <div class="w-9 h-9 rounded-[10px] bg-hadir-teal-sft flex items-center justify-center">
+          <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="#0E7C66" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="3" width="16" height="18" rx="2" />
+            <path d="M8 7h8M8 11h8M8 15h5" />
+          </svg>
+        </div>
+        <span class="flex-1 text-[15px] text-hadir-ink font-medium">Slip Gaji</span>
+        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-hadir-amber-sft text-hadir-amber">
+          Segera
+        </span>
       </div>
 
       <NuxtLink
