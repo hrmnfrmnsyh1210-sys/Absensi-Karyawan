@@ -7,6 +7,7 @@ export default defineEventHandler(async (event) => {
     work_end_time?: string
     work_days?: number[]
     annual_leave_quota?: number
+    location_check_enabled?: boolean
   }>(event)
 
   const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -36,12 +37,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Kuota cuti tahunan tidak valid (0-365)' })
   }
 
+  // Mode WFH global — default aktif (wajib cek lokasi) kecuali dikirim false.
+  const locationCheck = body?.location_check_enabled === false ? '0' : '1'
+
   const db = useDb()
   const entries: [string, string][] = [
     ['work_start_time', start],
     ['work_end_time', end],
     ['work_days', days.join(',')],
-    ['annual_leave_quota', String(quota)]
+    ['annual_leave_quota', String(quota)],
+    ['location_check_enabled', locationCheck]
   ]
   for (const [k, v] of entries) {
     await db.query<ResultSetHeader>(
@@ -54,7 +59,9 @@ export default defineEventHandler(async (event) => {
   await recordActivity(event, auth, {
     action: 'update',
     entity: 'settings',
-    summary: `Mengubah pengaturan kerja — jam ${start}-${end}, ${days.length} hari kerja, kuota cuti ${quota} hari`
+    summary:
+      `Mengubah pengaturan kerja — jam ${start}-${end}, ${days.length} hari kerja, kuota cuti ${quota} hari, ` +
+      `cek titik lokasi ${locationCheck === '1' ? 'AKTIF' : 'NONAKTIF (mode WFH)'}`
   })
 
   return getAppSettings()

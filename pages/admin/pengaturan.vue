@@ -38,6 +38,7 @@ interface AppSettings {
   work_end_time: string
   work_days: number[]
   annual_leave_quota: number
+  location_check_enabled: boolean
 }
 
 const DAY_OPTIONS = [
@@ -54,11 +55,43 @@ const settingsForm = ref<AppSettings>({
   work_start_time: '08:00',
   work_end_time: '17:00',
   work_days: [1, 2, 3, 4, 5],
-  annual_leave_quota: 12
+  annual_leave_quota: 12,
+  location_check_enabled: true
 })
 const settingsSaving = ref(false)
 const settingsError = ref<string | null>(null)
 const settingsMessage = ref<string | null>(null)
+
+// --- Mode WFH (cek titik lokasi global) ---
+const locationModeSaving = ref(false)
+const locationModeMessage = ref<string | null>(null)
+
+async function toggleLocationMode() {
+  if (locationModeSaving.value) return
+  locationModeSaving.value = true
+  settingsError.value = null
+  const next = !settingsForm.value.location_check_enabled
+  try {
+    settingsForm.value = await api<AppSettings>('/api/admin/settings', {
+      method: 'PUT',
+      body: {
+        work_start_time: settingsForm.value.work_start_time,
+        work_end_time: settingsForm.value.work_end_time,
+        work_days: settingsForm.value.work_days,
+        annual_leave_quota: Number(settingsForm.value.annual_leave_quota),
+        location_check_enabled: next
+      }
+    })
+    locationModeMessage.value = next
+      ? 'Cek titik lokasi diaktifkan kembali — pegawai wajib berada di radius kantor.'
+      : 'Mode WFH aktif — pegawai bisa absen dari luar lokasi kantor.'
+    setTimeout(() => { locationModeMessage.value = null }, 4000)
+  } catch (e: any) {
+    settingsError.value = e?.data?.statusMessage || e?.statusMessage || 'Gagal menyimpan'
+  } finally {
+    locationModeSaving.value = false
+  }
+}
 
 async function loadSettings() {
   try {
@@ -99,7 +132,8 @@ async function saveSettings() {
         work_start_time: settingsForm.value.work_start_time,
         work_end_time: settingsForm.value.work_end_time,
         work_days: settingsForm.value.work_days,
-        annual_leave_quota: Number(settingsForm.value.annual_leave_quota)
+        annual_leave_quota: Number(settingsForm.value.annual_leave_quota),
+        location_check_enabled: settingsForm.value.location_check_enabled
       }
     })
     settingsMessage.value = 'Jam & hari kerja tersimpan.'
@@ -379,6 +413,60 @@ const visualRadius = computed(() => {
         </button>
       </div>
     </form>
+
+    <!-- Mode WFH: nonaktifkan cek titik lokasi untuk semua pegawai -->
+    <div class="bg-white rounded-2xl border border-hadir-line p-4">
+      <div class="flex items-start gap-3">
+        <div
+          class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+          :class="settingsForm.location_check_enabled ? 'bg-hadir-teal-sft text-hadir-teal' : 'bg-hadir-amber-sft text-amber-600'"
+        >
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10.5L12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /><path d="M10 20v-5h4v5" />
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[15px] font-bold text-hadir-ink">Mode WFH — Absen dari Luar Lokasi</div>
+          <p class="text-[12px] text-hadir-ink-70 mt-0.5 leading-snug">
+            Saat diaktifkan, pengecekan titik lokasi dimatikan dan semua pegawai bisa absen dari mana saja —
+            cocok untuk hari WFH dari kantor. Matikan kembali agar absensi wajib di radius kantor.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          :aria-checked="!settingsForm.location_check_enabled"
+          :disabled="locationModeSaving"
+          class="relative w-12 h-7 rounded-full transition flex-shrink-0 disabled:opacity-60"
+          :class="!settingsForm.location_check_enabled ? 'bg-hadir-teal' : 'bg-hadir-line'"
+          @click="toggleLocationMode"
+        >
+          <span
+            class="absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform"
+            :class="!settingsForm.location_check_enabled ? 'translate-x-5' : ''"
+          />
+        </button>
+      </div>
+      <div
+        class="mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-semibold"
+        :class="settingsForm.location_check_enabled ? 'bg-hadir-teal-sft text-hadir-teal-dk' : 'bg-hadir-amber-sft text-amber-700'"
+      >
+        <span
+          class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+          :class="settingsForm.location_check_enabled ? 'bg-hadir-teal' : 'bg-hadir-amber'"
+        />
+        <span class="flex-1">
+          {{ settingsForm.location_check_enabled
+            ? 'Cek titik lokasi AKTIF — pegawai wajib berada di radius kantor.'
+            : 'Mode WFH AKTIF — pegawai bisa absen dari luar lokasi kantor.' }}
+        </span>
+        <svg v-if="locationModeSaving" class="animate-spin w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.25" />
+          <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+        </svg>
+      </div>
+      <p v-if="locationModeMessage" class="mt-2 text-[12px] text-hadir-teal-dk">{{ locationModeMessage }}</p>
+    </div>
 
     <!-- Jam & hari kerja -->
     <div>

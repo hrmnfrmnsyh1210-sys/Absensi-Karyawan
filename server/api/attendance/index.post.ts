@@ -7,10 +7,6 @@ interface OfficeRow extends RowDataPacket {
   radius_m: number
 }
 
-interface UserRow extends RowDataPacket {
-  wfh: number
-}
-
 export default defineEventHandler(async (event) => {
   const auth = requireAuth(event)
   const body = await readBody<{ type?: string; latitude?: number; longitude?: number }>(event)
@@ -25,12 +21,10 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
 
-  // WFH employees: admin sudah mematikan cek titik lokasi, GPS jadi opsional.
-  const [userRows] = await db.query<UserRow[]>(
-    'SELECT wfh FROM users WHERE id = ? LIMIT 1',
-    [auth.sub]
-  )
-  const isWfh = !!userRows[0]?.wfh
+  // Mode WFH global: admin bisa mematikan cek titik lokasi di menu Pengaturan.
+  // Saat nonaktif, semua pegawai boleh absen dari luar radius kantor.
+  const settings = await getAppSettings()
+  const isWfh = settings.location_check_enabled === false
 
   const [offices] = await db.query<OfficeRow[]>(
     'SELECT id, latitude, longitude, radius_m FROM offices ORDER BY id LIMIT 1'

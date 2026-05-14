@@ -17,7 +17,6 @@ export default defineEventHandler(async (event) => {
     role?: UserRole
     jabatan?: string
     tanggal_lahir?: string
-    wfh?: boolean
   }>(event)
 
   const nip = body?.nip?.trim()
@@ -28,7 +27,6 @@ export default defineEventHandler(async (event) => {
     body?.role === 'admin' || body?.role === 'super_admin' ? body.role : 'pegawai'
   const jabatan = body?.jabatan?.trim() || null
   const tanggal_lahir = body?.tanggal_lahir?.trim() || null
-  const wfh = body?.wfh ? 1 : 0
 
   // Admin biasa hanya boleh menambahkan pegawai — bukan admin/super admin.
   if (role !== 'pegawai' && auth.role !== 'super_admin') {
@@ -49,8 +47,8 @@ export default defineEventHandler(async (event) => {
   try {
     const hash = await hashPassword(password)
     const [result] = await db.query<ResultSetHeader>(
-      'INSERT INTO users (nip, email, name, password_hash, role, jabatan, tanggal_lahir, wfh) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [nip, email, name, hash, role, jabatan, tanggal_lahir, wfh]
+      'INSERT INTO users (nip, email, name, password_hash, role, jabatan, tanggal_lahir) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nip, email, name, hash, role, jabatan, tanggal_lahir]
     )
     await recordActivity(event, auth, {
       action: 'create',
@@ -58,7 +56,7 @@ export default defineEventHandler(async (event) => {
       entityId: result.insertId,
       summary: `Menambahkan ${ROLE_LABEL[role]} "${name}" (NIP ${nip})`
     })
-    return { id: result.insertId, nip, email, name, role, jabatan, tanggal_lahir, wfh }
+    return { id: result.insertId, nip, email, name, role, jabatan, tanggal_lahir }
   } catch (e: any) {
     if (e?.code === 'ER_DUP_ENTRY') {
       throw createError({ statusCode: 409, statusMessage: 'NIP atau email sudah terdaftar' })

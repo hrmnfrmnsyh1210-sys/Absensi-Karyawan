@@ -6,7 +6,6 @@ interface User {
   role: 'super_admin' | 'admin' | 'pegawai'
   jabatan?: string | null
   tanggal_lahir?: string | null
-  wfh?: number
 }
 
 export function useAuth() {

@@ -27,7 +27,6 @@ export default defineEventHandler(async (event) => {
     password?: string
     jabatan?: string
     tanggal_lahir?: string
-    wfh?: boolean
   }>(event)
 
   const nip = body?.nip?.trim()
@@ -38,7 +37,6 @@ export default defineEventHandler(async (event) => {
   const password = body?.password
   const jabatan = body?.jabatan?.trim() || null
   const tanggal_lahir = body?.tanggal_lahir?.trim() || null
-  const wfh = body?.wfh ? 1 : 0
 
   if (!nip || !email || !name) {
     throw createError({ statusCode: 400, statusMessage: 'NIP, email, dan nama wajib diisi' })
@@ -77,13 +75,13 @@ export default defineEventHandler(async (event) => {
       }
       const hash = await hashPassword(password)
       await db.query<ResultSetHeader>(
-        'UPDATE users SET nip = ?, email = ?, name = ?, role = ?, jabatan = ?, tanggal_lahir = ?, wfh = ?, password_hash = ? WHERE id = ?',
-        [nip, email, name, role, jabatan, tanggal_lahir, wfh, hash, id]
+        'UPDATE users SET nip = ?, email = ?, name = ?, role = ?, jabatan = ?, tanggal_lahir = ?, password_hash = ? WHERE id = ?',
+        [nip, email, name, role, jabatan, tanggal_lahir, hash, id]
       )
     } else {
       await db.query<ResultSetHeader>(
-        'UPDATE users SET nip = ?, email = ?, name = ?, role = ?, jabatan = ?, tanggal_lahir = ?, wfh = ? WHERE id = ?',
-        [nip, email, name, role, jabatan, tanggal_lahir, wfh, id]
+        'UPDATE users SET nip = ?, email = ?, name = ?, role = ?, jabatan = ?, tanggal_lahir = ? WHERE id = ?',
+        [nip, email, name, role, jabatan, tanggal_lahir, id]
       )
     }
 
@@ -97,7 +95,7 @@ export default defineEventHandler(async (event) => {
         (roleChanged ? ` — peran diubah ke ${ROLE_LABEL[role]}` : '') +
         (password ? ' — password direset' : '')
     })
-    return { id, nip, email, name, role, jabatan, tanggal_lahir, wfh }
+    return { id, nip, email, name, role, jabatan, tanggal_lahir }
   } catch (e: any) {
     if (e?.code === 'ER_DUP_ENTRY') {
       throw createError({ statusCode: 409, statusMessage: 'NIP atau email sudah dipakai user lain' })

@@ -3,13 +3,16 @@ export interface AppSettings {
   work_end_time: string
   work_days: number[]
   annual_leave_quota: number
+  // false = mode WFH: cek titik lokasi dimatikan untuk semua pegawai.
+  location_check_enabled: boolean
 }
 
 const FALLBACK: AppSettings = {
   work_start_time: '08:00',
   work_end_time: '17:00',
   work_days: [1, 2, 3, 4, 5],
-  annual_leave_quota: 12
+  annual_leave_quota: 12,
+  location_check_enabled: true
 }
 
 export function useSettings() {

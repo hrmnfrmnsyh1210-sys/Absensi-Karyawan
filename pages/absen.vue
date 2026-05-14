@@ -32,8 +32,9 @@ const successResult = ref<{ type: 'check_in' | 'check_out'; recorded_at: string;
 const inRange = computed(
   () => office.value !== null && distance.value !== null && distance.value <= office.value.radius_m
 )
-// Admin bisa mematikan titik lokasi untuk pegawai WFH — absen tanpa cek radius GPS.
-const isWfh = computed(() => !!user.value?.wfh)
+// Mode WFH global — admin mematikan cek titik lokasi di menu Pengaturan.
+// Saat aktif, pegawai bisa absen tanpa harus berada di radius kantor.
+const isWfh = computed(() => settings.value.location_check_enabled === false)
 const canSubmit = computed(() => isWfh.value || (!!position.value && inRange.value))
 
 async function loadOffice() {
@@ -225,7 +226,7 @@ onMounted(() => { if (!isWfh.value) locate() })
       <div class="min-w-0">
         <p class="text-[15px] font-bold text-hadir-teal-dk">Mode WFH aktif</p>
         <p class="text-[13px] text-hadir-ink-70 mt-1 leading-[1.5]">
-          Admin telah mematikan pengecekan titik lokasi untuk akun Anda. Anda bisa langsung
+          Admin sedang mematikan pengecekan titik lokasi. Anda bisa langsung
           {{ actionLabel.toLowerCase() }} tanpa perlu berada di radius kantor.
         </p>
       </div>

@@ -10,13 +10,17 @@ export interface AppSettings {
   work_end_time: string
   work_days: number[]
   annual_leave_quota: number
+  // true = pegawai wajib berada di radius kantor saat absen.
+  // false = mode WFH: cek titik lokasi dimatikan, pegawai bisa absen dari mana saja.
+  location_check_enabled: boolean
 }
 
 export const SETTINGS_DEFAULTS: AppSettings = {
   work_start_time: '08:00',
   work_end_time: '17:00',
   work_days: [1, 2, 3, 4, 5],
-  annual_leave_quota: 12
+  annual_leave_quota: 12,
+  location_check_enabled: true
 }
 
 export async function getAppSettings(): Promise<AppSettings> {
@@ -32,6 +36,8 @@ export async function getAppSettings(): Promise<AppSettings> {
       .split(',')
       .map((s) => Number(s.trim()))
       .filter((n) => Number.isFinite(n) && n >= 0 && n <= 6),
-    annual_leave_quota: Number(map.get('annual_leave_quota')) || SETTINGS_DEFAULTS.annual_leave_quota
+    annual_leave_quota: Number(map.get('annual_leave_quota')) || SETTINGS_DEFAULTS.annual_leave_quota,
+    // Tersimpan sebagai '1'/'0'. Default aktif kalau belum pernah diset.
+    location_check_enabled: (map.get('location_check_enabled') ?? '1') !== '0'
   }
 }

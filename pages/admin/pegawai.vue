@@ -11,7 +11,6 @@ interface Pegawai {
   role: Role
   jabatan: string | null
   tanggal_lahir: string | null
-  wfh: number
   created_at: string
 }
 
@@ -48,8 +47,7 @@ const form = ref({
   password: '',
   role: 'pegawai' as Role,
   jabatan: '',
-  tanggal_lahir: '',
-  wfh: false
+  tanggal_lahir: ''
 })
 
 const detail = ref<Pegawai | null>(null)
@@ -88,7 +86,7 @@ watch(search, () => {
 
 function openAdd() {
   editing.value = null
-  form.value = { nip: '', email: '', name: '', password: '', role: 'pegawai', jabatan: '', tanggal_lahir: '', wfh: false }
+  form.value = { nip: '', email: '', name: '', password: '', role: 'pegawai', jabatan: '', tanggal_lahir: '' }
   dialogOpen.value = true
   error.value = null
 }
@@ -102,8 +100,7 @@ function openEdit(p: Pegawai) {
     password: '',
     role: p.role,
     jabatan: p.jabatan || '',
-    tanggal_lahir: p.tanggal_lahir || '',
-    wfh: !!p.wfh
+    tanggal_lahir: p.tanggal_lahir || ''
   }
   detail.value = null
   dialogOpen.value = true
@@ -239,10 +236,6 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
                 class="inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-bold uppercase flex-shrink-0"
                 :class="roleChipClass(p.role)"
               >{{ ROLE_LABEL[p.role] }}</span>
-              <span
-                v-if="p.wfh"
-                class="inline-flex items-center px-1.5 py-0 rounded-full text-[9px] font-bold uppercase bg-hadir-teal-sft text-hadir-teal-dk flex-shrink-0"
-              >WFH</span>
             </div>
             <div class="text-[10px] text-hadir-ink-70 mt-0.5 flex items-center gap-1 leading-tight">
               <span class="font-mono">{{ p.nip }}</span>
@@ -325,10 +318,6 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
                   <span class="w-1 h-1 rounded-full" :class="p.role !== 'pegawai' ? 'bg-hadir-amber' : 'bg-hadir-teal'" />
                   {{ ROLE_LABEL[p.role] }}
                 </span>
-                <span
-                  v-if="p.wfh"
-                  class="ml-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase bg-hadir-teal-sft text-hadir-teal-dk"
-                >WFH</span>
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
                 <template v-if="canManage(p)">
@@ -415,18 +404,6 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
             </label>
             <input v-model="form.password" type="password" :required="!editing" minlength="6" class="w-full h-11 rounded-xl bg-hadir-bg border border-hadir-line px-3 text-sm focus:bg-white focus:border-hadir-teal focus:ring-2 focus:ring-hadir-teal/20 outline-none transition">
           </div>
-          <label
-            class="flex items-start gap-3 rounded-xl border border-hadir-line bg-hadir-bg px-3 py-3 cursor-pointer"
-            :class="form.wfh ? 'border-hadir-teal bg-hadir-teal-sft' : ''"
-          >
-            <input v-model="form.wfh" type="checkbox" class="mt-0.5 w-4 h-4 accent-hadir-teal flex-shrink-0">
-            <span class="min-w-0">
-              <span class="block text-sm font-semibold text-hadir-ink">Mode WFH (matikan titik lokasi)</span>
-              <span class="block text-[11px] text-hadir-ink-70 mt-0.5 leading-snug">
-                Pegawai bisa absen tanpa pengecekan radius GPS kantor.
-              </span>
-            </span>
-          </label>
           <p v-if="error" class="text-sm text-hadir-red bg-hadir-red-sft border border-hadir-red/20 rounded-xl px-3 py-2.5">{{ error }}</p>
           <div class="flex gap-2 pt-2">
             <button type="button" class="flex-1 h-11 rounded-xl bg-white border border-hadir-line text-hadir-ink font-semibold hover:bg-hadir-bg transition" @click="dialogOpen = false">
@@ -507,17 +484,6 @@ const pegawaiCount = computed(() => list.value.filter(p => p.role === 'pegawai')
             <div class="flex items-center justify-between py-2.5 gap-3">
               <dt class="text-[12px] font-semibold text-hadir-ink-50">Email</dt>
               <dd class="text-[13px] text-hadir-ink text-right break-all">{{ detail.email }}</dd>
-            </div>
-            <div class="flex items-center justify-between py-2.5 gap-3">
-              <dt class="text-[12px] font-semibold text-hadir-ink-50">Absensi</dt>
-              <dd class="text-right">
-                <span
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
-                  :class="detail.wfh ? 'bg-hadir-teal-sft text-hadir-teal-dk' : 'bg-[#EEF2F4] text-hadir-ink-70'"
-                >
-                  {{ detail.wfh ? 'WFH · tanpa titik lokasi' : 'WFO · cek lokasi' }}
-                </span>
-              </dd>
             </div>
           </dl>
 

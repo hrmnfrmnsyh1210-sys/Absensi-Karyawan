@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const [rows] = await db.query<RowDataPacket[]>(
     `SELECT id, nip, email, name, role, jabatan,
             DATE_FORMAT(tanggal_lahir, '%Y-%m-%d') AS tanggal_lahir,
-            wfh, created_at
+            created_at
      FROM users ${where} ORDER BY name ASC`,
     params
   )

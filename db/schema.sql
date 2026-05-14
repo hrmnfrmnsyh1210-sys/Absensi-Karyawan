@@ -4,10 +4,9 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) NOT NULL UNIQUE,
   name VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('super_admin', 'admin', 'pegawai') NOT NULL DEFAULT 'pegawai',
+  role ENUM('admin', 'pegawai', 'super_admin') NOT NULL DEFAULT 'pegawai',
   jabatan VARCHAR(128) NULL,
   tanggal_lahir DATE NULL,
-  wfh TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
