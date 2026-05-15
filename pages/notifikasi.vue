@@ -16,6 +16,9 @@ const router = useRouter()
 const list = ref<Notification[]>([])
 const loading = ref(false)
 
+const push = usePushNotifications()
+onMounted(() => { push.refresh() })
+
 async function load() {
   loading.value = true
   try {
@@ -93,6 +96,83 @@ const typeMap: Record<Notification['type'], TypeMeta> = {
     <p class="px-5 mt-1 text-[13px] text-hadir-ink-50">
       {{ unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca' }}
     </p>
+
+    <!-- push notification toggle -->
+    <div class="px-5 mt-4">
+      <!-- belum aktif & masih bisa diaktifkan -->
+      <div
+        v-if="push.supported.value && push.permission.value !== 'denied' && !push.subscribed.value"
+        class="bg-white rounded-2xl p-4 border border-hadir-teal/30 flex items-start gap-3"
+      >
+        <div class="w-10 h-10 rounded-xl bg-hadir-teal-sft text-hadir-teal flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+            <path d="M6 8a6 6 0 1112 0v4l2 4H4l2-4V8z" />
+            <path d="M10 19a2 2 0 004 0" />
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[14px] font-semibold text-hadir-ink">Aktifkan notifikasi di HP</p>
+          <p class="text-[12px] text-hadir-ink-70 mt-0.5 leading-snug">
+            Dapatkan pemberitahuan di layar HP saat cuti disetujui / ditolak, walaupun aplikasi tertutup.
+          </p>
+          <button
+            type="button"
+            :disabled="push.busy.value"
+            class="mt-2.5 inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-hadir-teal hover:bg-hadir-teal-dk disabled:opacity-60 text-white text-[13px] font-semibold shadow-hadir-cta transition"
+            @click="push.enable"
+          >
+            <svg v-if="push.busy.value" class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.25" />
+              <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            </svg>
+            {{ push.busy.value ? 'Mengaktifkan…' : 'Aktifkan' }}
+          </button>
+          <p v-if="push.error.value" class="text-[11px] text-hadir-red mt-1.5">{{ push.error.value }}</p>
+        </div>
+      </div>
+
+      <!-- sudah aktif -->
+      <div
+        v-else-if="push.subscribed.value"
+        class="bg-hadir-teal-sft/60 rounded-2xl p-3 border border-hadir-teal/20 flex items-center gap-3"
+      >
+        <div class="w-8 h-8 rounded-lg bg-white text-hadir-teal flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-semibold text-hadir-teal-dk">Notifikasi HP aktif</p>
+          <p class="text-[11px] text-hadir-ink-70">Kamu akan mendapat notifikasi di layar HP.</p>
+        </div>
+        <button
+          type="button"
+          :disabled="push.busy.value"
+          class="text-[11px] font-semibold text-hadir-ink-70 px-2 py-1 rounded-md hover:bg-white/60 disabled:opacity-60"
+          @click="push.disable"
+        >Matikan</button>
+      </div>
+
+      <!-- izin ditolak -->
+      <div
+        v-else-if="push.supported.value && push.permission.value === 'denied'"
+        class="bg-hadir-amber-sft rounded-2xl p-3 border border-hadir-amber/30 flex items-start gap-3"
+      >
+        <div class="w-8 h-8 rounded-lg bg-white text-hadir-amber flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-semibold text-amber-800">Izin notifikasi ditolak</p>
+          <p class="text-[11px] text-amber-700 leading-snug mt-0.5">
+            Aktifkan kembali lewat pengaturan situs di browser — cari "Notifications" → pilih "Allow".
+          </p>
+        </div>
+      </div>
+    </div>
 
     <!-- list -->
     <div class="px-5 pt-4 space-y-2.5">

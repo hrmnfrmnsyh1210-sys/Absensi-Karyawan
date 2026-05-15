@@ -16,6 +16,19 @@ const MIGRATIONS: string[] = [
     INDEX idx_date_range (date_from, date_to),
     CONSTRAINT fk_holidays_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  // Web push subscriptions — disimpan per device per user.
+  `CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    endpoint VARCHAR(512) NOT NULL UNIQUE,
+    p256dh VARCHAR(255) NOT NULL,
+    auth_key VARCHAR(255) NOT NULL,
+    user_agent VARCHAR(512) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP NULL,
+    INDEX idx_push_user (user_id),
+    CONSTRAINT fk_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   // Activity log — super admin memantau aksi yang dilakukan admin.
   `CREATE TABLE IF NOT EXISTS activity_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,

@@ -58,11 +58,14 @@ export default defineEventHandler(async (event) => {
     ? `Pengajuan ${typeLabel.toLowerCase()} kamu untuk ${rangeLabel} telah disetujui.${note ? ` Catatan admin: ${note}` : ''}`
     : `Pengajuan ${typeLabel.toLowerCase()} kamu untuk ${rangeLabel} ditolak.${note ? ` Alasan: ${note}` : ''}`
 
-  await db.query<ResultSetHeader>(
-    `INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-     VALUES (?, ?, ?, ?, 'leave', ?)`,
-    [leave.user_id, isApproved ? 'leave_approved' : 'leave_rejected', title, notifBody, id]
-  )
+  // Notif in-app + Web Push ke HP user.
+  await createNotification(leave.user_id, {
+    type: isApproved ? 'leave_approved' : 'leave_rejected',
+    title,
+    body: notifBody,
+    refType: 'leave',
+    refId: id
+  })
 
   await recordActivity(event, auth, {
     action: isApproved ? 'approve' : 'reject',

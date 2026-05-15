@@ -251,7 +251,7 @@ const monthStats = computed(() => {
     </div>
 
     <p class="text-center text-[11px] text-hadir-ink-50 mt-6 mb-4">
-      Hadir · v1.0 by PT Nusantara
+      Hadir · v1.0 by Telkom Akses
     </p>
 
     <!-- Detail profil -->

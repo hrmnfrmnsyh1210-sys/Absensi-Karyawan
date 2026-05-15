@@ -44,7 +44,7 @@ async function onSubmit() {
         </svg>
         <div>
           <div class="text-[22px] font-bold tracking-[-0.3px] leading-tight">Hadir</div>
-          <div class="text-xs text-white/70 tracking-[0.4px]">by PT Nusantara</div>
+          <div class="text-xs text-white/70 tracking-[0.4px]">by Telkom Akses</div>
         </div>
       </div>
 
@@ -171,8 +171,8 @@ async function onSubmit() {
 
           <p class="text-[11px] text-hadir-ink-50 text-center pt-2 border-t border-hadir-line leading-relaxed">
             Demo akun
-            <span class="block mt-0.5 font-mono text-hadir-ink">superadmin@telkomakses.co.id / superadmin123</span>
-            <span class="block font-mono text-hadir-ink">admin@telkomakses.co.id / admin123</span>
+            <span class="block mt-0.5 font-mono text-hadir-ink">superadmin@example.com / superadmin123</span>
+            <span class="block font-mono text-hadir-ink">admin@example.com / admin123</span>
           </p>
         </form>
       </div>

@@ -11,11 +11,16 @@ export default defineNuxtConfig({
     dbPassword: process.env.DB_PASSWORD || '',
     dbName: process.env.DB_NAME || 'absensi_karyawan',
     dbSsl: process.env.DB_SSL || 'false',
+    // Web Push (server side only — private key rahasia)
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
+    vapidSubject: process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
     public: {
       // Base URL untuk fetch API. Kosong = relative (web mode).
       // Untuk Capacitor APK, isi via NUXT_PUBLIC_API_BASE saat build:
       //   NUXT_PUBLIC_API_BASE=http://192.168.1.10:3000 npm run build:capacitor
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || ''
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
+      // Public key VAPID — dibaca browser saat subscribe push.
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY || ''
     }
   },
   app: {
@@ -58,6 +63,8 @@ export default defineNuxtConfig({
     workbox: {
       navigateFallback: '/',
       globPatterns: ['**/*.{js,css,html,png,ico,woff2}'],
+      // Tambahkan handler push & notificationclick ke service worker bawaan.
+      importScripts: ['/push-sw.js'],
       runtimeCaching: [
         {
           urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
