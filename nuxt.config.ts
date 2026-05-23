@@ -1,6 +1,10 @@
+const isCapacitor = process.env.CAPACITOR === 'true'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
   devtools: { enabled: true },
+  // Capacitor: SPA only (no per-route prerender → hash router handles everything client-side)
+  ssr: !isCapacitor,
   modules: ['@nuxtjs/tailwindcss', '@vite-pwa/nuxt'],
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
@@ -23,6 +27,11 @@ export default defineNuxtConfig({
       vapidPublicKey: process.env.VAPID_PUBLIC_KEY || ''
     }
   },
+  vite: {
+    define: {
+      __IS_CAPACITOR__: JSON.stringify(isCapacitor)
+    }
+  },
   app: {
     head: {
       title: 'Absensi Karyawan',
@@ -42,6 +51,7 @@ export default defineNuxtConfig({
     }
   },
   pwa: {
+    disable: isCapacitor,
     registerType: 'autoUpdate',
     manifest: {
       name: 'Hadir — Absensi Karyawan',

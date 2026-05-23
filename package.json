@@ -14,7 +14,9 @@
     "build:capacitor": "nuxt generate",
     "cap:add-android": "cap add android",
     "cap:sync": "cap sync android",
-    "cap:open": "cap open android"
+    "cap:open": "cap open android",
+    "apk": "node scripts/build-apk.mjs",
+    "apk:release": "node scripts/build-apk.mjs --release"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.3",

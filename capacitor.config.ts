@@ -8,6 +8,13 @@ const config: CapacitorConfig = {
   android: {
     // Wajib true kalau API Anda di HTTP (LAN dev). Production wajib HTTPS.
     allowMixedContent: true
+  },
+  plugins: {
+    // Bypass CORS WebView: fetch() & XHR di-route lewat native HTTP layer.
+    // Wajib aktif untuk APK karena origin https://localhost ditolak preflight Vercel.
+    CapacitorHttp: {
+      enabled: true
+    }
   }
   // Untuk dev cepat dengan live-reload langsung dari Nuxt dev server, uncomment ini:
   // server: {
