@@ -8,3 +8,9 @@ node_modules
 .DS_Store
 dist
 uploads
+
+# Capacitor native projects — hasil generate `cap add`, bukan source. Regenerate via `npx cap add android`.
+android
+ios
+*.apk
+*.aab
