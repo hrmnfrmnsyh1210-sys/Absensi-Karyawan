@@ -71,7 +71,9 @@ export default defineNuxtConfig({
       ]
     },
     workbox: {
-      navigateFallback: '/',
+      // navigateFallback sengaja TIDAK di-set: app jalan SSR, jadi route '/'
+      // dirender server & tidak ikut precache. Set '/' di sini bikin Workbox
+      // error `non-precached-url`. Tanpa fallback, push & precache aset tetap jalan.
       globPatterns: ['**/*.{js,css,html,png,ico,woff2}'],
       // Tambahkan handler push & notificationclick ke service worker bawaan.
       importScripts: ['/push-sw.js'],
@@ -95,8 +97,7 @@ export default defineNuxtConfig({
     },
     devOptions: {
       enabled: true,
-      type: 'module',
-      navigateFallback: '/'
+      type: 'module'
     }
   }
 })
